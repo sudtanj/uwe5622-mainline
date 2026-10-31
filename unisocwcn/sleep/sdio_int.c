@@ -17,8 +17,8 @@
 
 struct sdio_int_t sdio_int = {0};
 
-atomic_t flag_pub_int_done;
-bool sdio_power_notify = FALSE;
+static atomic_t flag_pub_int_done;
+static bool sdio_power_notify = FALSE;
 
 static inline int sdio_pub_int_clr0(unsigned char int_sts0)
 {

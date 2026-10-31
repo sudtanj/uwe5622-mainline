@@ -3750,7 +3750,7 @@ sprdwl_vendor_set_sar_limits_policy[ATTR_SAR_LIMITS_MAX + 1] = {
 	[ATTR_SAR_LIMITS_SAR_ENABLE] = {.type = NLA_U32 },
 };
 
-const struct wiphy_vendor_command sprdwl_vendor_cmd[] = {
+static const struct wiphy_vendor_command sprdwl_vendor_cmd[] = {
 	{/*9*/
 		{
 		    .vendor_id = OUI_SPREAD,
@@ -4163,7 +4163,7 @@ const struct wiphy_vendor_command sprdwl_vendor_cmd[] = {
 };
 
 static const struct nl80211_vendor_cmd_info sprdwl_vendor_events[] = {
-	[SPRDWL_VENDOR_SUBCMD_MONITOR_RSSI_INDEX]{
+	[SPRDWL_VENDOR_SUBCMD_MONITOR_RSSI_INDEX] = {
 		.vendor_id = OUI_SPREAD,
 		.subcmd = SPRDWL_VENDOR_SUBCMD_MONITOR_RSSI,
 	},

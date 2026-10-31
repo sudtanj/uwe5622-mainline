@@ -39,7 +39,7 @@
 #include "slp_sdio.h"
 #include "wcn_glb.h"
 
-struct slp_mgr_t slp_mgr;
+static struct slp_mgr_t slp_mgr;
 
 struct slp_mgr_t *slp_get_info(void)
 {

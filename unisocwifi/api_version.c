@@ -18,8 +18,8 @@
 #include <net/cfg80211.h>
 #include "sprdwl.h"
 
-struct api_version_t g_api_array[] = {
-	[0]{	/*ID:0*/
+static struct api_version_t g_api_array[] = {
+	[0] = {	/*ID:0*/
 		.cmd_id = WIFI_CMD_ERR,
 		.drv_version = 1,
 	},
@@ -187,7 +187,7 @@ struct api_version_t g_api_array[] = {
 		.cmd_id = WIFI_CMD_DELBA_REQ,
 		.drv_version = 1,
 	},
-	[56]{	/*ID:56*/
+	[56] = {	/*ID:56*/
 		.cmd_id = WIFI_CMD_LLSTAT,
 		.drv_version = 1,
 	},
@@ -259,7 +259,7 @@ struct api_version_t g_api_array[] = {
 		.cmd_id = WIFI_CMD_NAN_DATA_PATH,
 		.drv_version = 1,
 	},
-	[74]{	/*ID:74*/
+	[74] = {	/*ID:74*/
 		.cmd_id = WIFI_CMD_SET_TLV,
 		.drv_version = 1,
 	},
@@ -293,104 +293,104 @@ struct api_version_t g_api_array[] = {
 		.drv_version = 1,
 	},
 #endif
-	[84]{
+	[84] = {
 		/*ID:84*/
 		.cmd_id = WIFI_CMD_PACKET_OFFLOAD,
 		.drv_version = 1,
 	},
-	[128]{	/*ID:0x80*/
+	[128] = {	/*ID:0x80*/
 		.cmd_id = WIFI_EVENT_CONNECT,
 		.drv_version = 1,
 	},
-	[129]{	/*ID:0x81*/
+	[129] = {	/*ID:0x81*/
 		.cmd_id = WIFI_EVENT_DISCONNECT,
 		.drv_version = 1,
 	},
-	[130]{	/*ID:0x82*/
+	[130] = {	/*ID:0x82*/
 		.cmd_id = WIFI_EVENT_SCAN_DONE,
 		.drv_version = 1,
 	},
-	[131]{	/*ID:0x83*/
+	[131] = {	/*ID:0x83*/
 		.cmd_id = WIFI_EVENT_MGMT_FRAME,
 		.drv_version = 1,
 	},
-	[132]{	/*ID:0x84*/
+	[132] = {	/*ID:0x84*/
 		.cmd_id = WIFI_EVENT_MGMT_TX_STATUS,
 		.drv_version = 1,
 	},
-	[133]{	/*ID:0x85*/
+	[133] = {	/*ID:0x85*/
 		.cmd_id = WIFI_EVENT_REMAIN_CHAN_EXPIRED,
 		.drv_version = 1,
 	},
-	[134]{	/*ID:0x86*/
+	[134] = {	/*ID:0x86*/
 		.cmd_id = WIFI_EVENT_MIC_FAIL,
 		.drv_version = 1,
 	},
-	[136]{	/*ID:0x88*/
+	[136] = {	/*ID:0x88*/
 		.cmd_id = WIFI_EVENT_GSCAN_FRAME,
 		.drv_version = 1,
 	},
-	[137]{	/*ID:0x89*/
+	[137] = {	/*ID:0x89*/
 		.cmd_id = WIFI_EVENT_RSSI_MONITOR,
 		.drv_version = 1,
 	},
-	[160]{	/*ID:0xa0*/
+	[160] = {	/*ID:0xa0*/
 		.cmd_id = WIFI_EVENT_NEW_STATION,
 		.drv_version = 1,
 	},
-	[161]{	/*ID:0xa1*/
+	[161] = {	/*ID:0xa1*/
 		.cmd_id = WIFI_EVENT_RADAR_DETECTED,
 		.drv_version = 1,
 	},
-	[176]{	/*ID:0xb0*/
+	[176] = {	/*ID:0xb0*/
 		.cmd_id = WIFI_EVENT_CQM,
 		.drv_version = 1,
 	},
-	[177]{	/*ID:0xb1*/
+	[177] = {	/*ID:0xb1*/
 		.cmd_id = WIFI_EVENT_MEASUREMENT,
 		.drv_version = 1,
 	},
-	[178]{	/*ID:0xb2*/
+	[178] = {	/*ID:0xb2*/
 		.cmd_id = WIFI_EVENT_TDLS,
 		.drv_version = 1,
 	},
-	[179]{	/*ID:0xb3*/
+	[179] = {	/*ID:0xb3*/
 		.cmd_id = WIFI_EVENT_SDIO_FLOWCON,
 		.drv_version = 1,
 	},
-	[224]{	/*ID:0xe0*/
+	[224] = {	/*ID:0xe0*/
 		.cmd_id = WIFI_EVENT_SDIO_SEQ_NUM,
 		.drv_version = 1,
 	},
-	[242]{	/*ID:0xf2*/
+	[242] = {	/*ID:0xf2*/
 		.cmd_id = WIFI_EVENT_RTT,
 		.drv_version = 1,
 	},
-	[243]{	/*ID:0xf3*/
+	[243] = {	/*ID:0xf3*/
 		.cmd_id = WIFI_EVENT_BA,
 		.drv_version = 1,
 	},
-	[244]{	/*ID:0xf4*/
+	[244] = {	/*ID:0xf4*/
 		.cmd_id = WIFI_EVENT_NAN,
 		.drv_version = 1,
 	},
-	[245]{	/*ID:0xf5*/
+	[245] = {	/*ID:0xf5*/
 		.cmd_id = WIFI_EVENT_STA_LUT_INDEX,
 		.drv_version = 1,
 	},
-	[246]{	/*ID:0xf6*/
+	[246] = {	/*ID:0xf6*/
 		.cmd_id = WIFI_EVENT_HANG_RECOVERY,
 		.drv_version = 1,
 	},
-	[247]{	/*ID:0xf7*/
+	[247] = {	/*ID:0xf7*/
 		.cmd_id = WIFI_EVENT_THERMAL_WARN,
 		.drv_version = 1,
 	},
-	[248]{	/*ID:0xf8*/
+	[248] = {	/*ID:0xf8*/
 		.cmd_id = WIFI_EVENT_SUSPEND_RESUME,
 		.drv_version = 1,
 	},
-	[255]{
+	[255] = {
 		.drv_version = 0,
 	}
 };

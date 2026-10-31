@@ -265,8 +265,8 @@ marlin_reset_callback marlin_reset_func;
 void *marlin_callback_para;
 static struct raw_notifier_head marlin_reset_notifiers[MARLIN_ALL];
 
-struct marlin_device *marlin_dev;
-struct sprdwcn_gnss_ops *gnss_ops;
+static struct marlin_device *marlin_dev;
+static struct sprdwcn_gnss_ops *gnss_ops;
 
 /* int_ap is a gpio_desc pointer on 7.1+ and a legacy gpio number (0 or a
  * negative errno when absent) before that; hide the difference from callers.

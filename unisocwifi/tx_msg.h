@@ -118,5 +118,9 @@ void sprdwl_fc_add_share_credit(struct sprdwl_vif *vif);
 
 bool is_vowifi_pkt(struct sk_buff *skb, bool *b_cmd_path);
 void tx_up(struct sprdwl_tx_msg *tx_msg);
+extern unsigned int vo_ratio;
+extern unsigned int vi_ratio;
+extern unsigned int be_ratio;
+
 #endif
 

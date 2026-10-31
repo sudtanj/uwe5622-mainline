@@ -25,9 +25,9 @@
 #define TRUE        1
 #endif
 
-struct proc_dir_entry *bluetooth_dir, *sleep_dir;
-struct wakeup_source *tx_ws;
-struct wakeup_source *rx_ws;
+static struct proc_dir_entry *bluetooth_dir, *sleep_dir;
+static struct wakeup_source *tx_ws;
+static struct wakeup_source *rx_ws;
 
 static void host_wakeup_bt(void)
 {

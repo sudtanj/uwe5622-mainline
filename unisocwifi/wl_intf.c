@@ -153,8 +153,8 @@ void set_coex_bt_on_off(u8 action)
 	intf->coex_bt_on = action;
 }
 
-unsigned long mbufalloc;
-unsigned long mbufpop;
+static unsigned long mbufalloc;
+static unsigned long mbufpop;
 int if_tx_one(struct sprdwl_intf *intf, unsigned char *data,
 	      int len, int chn)
 {
@@ -350,7 +350,7 @@ int sprdwl_add_topop_list(int chn, struct mbuf_t *head,
 	return 0;
 }
 
-unsigned long tx_packets;
+static unsigned long tx_packets;
 int sprdwl_intf_tx_list(struct sprdwl_intf *dev,
 			struct list_head *tx_list,
 			struct list_head *tx_list_head,
@@ -1365,7 +1365,7 @@ static int sprdwl_suspend_resume_handle(int chn, int mode)
  *  Subtype 2  --> port 12(fifolen=8)
  *  Subtype 3  --> port 13(fifolen=8)
  */
-struct mchn_ops_t sdio_hif_ops[] = {
+static struct mchn_ops_t sdio_hif_ops[] = {
 	/* RX INTF */
 	/* NOTE: Requested by SDIO team, pool_size MUST be 1 in RX */
 	INIT_INTF(SDIO_RX_CMD_PORT, 0, 0, 0,
@@ -1394,7 +1394,7 @@ struct mchn_ops_t sdio_hif_ops[] = {
 		  sprdwl_tx_data_pop_list, NULL, NULL, NULL),
 };
 
-struct mchn_ops_t pcie_hif_ops[] = {
+static struct mchn_ops_t pcie_hif_ops[] = {
 	/* RX INTF */
 	INIT_INTF(PCIE_RX_CMD_PORT, 1, 0, 0,
 		  SPRDWL_MAX_CMD_RXLEN, 1, 0, 0, 0,
@@ -1413,7 +1413,7 @@ struct mchn_ops_t pcie_hif_ops[] = {
 		  sprdwl_tx_data_pop_list, NULL, NULL, NULL)
 };
 
-struct mchn_ops_t usb_hif_ops[] = {
+static struct mchn_ops_t usb_hif_ops[] = {
 	/* RX INTF */
 	INIT_INTF(USB_RX_CMD_PORT, 3, 0, 0,
 		  SPRDWL_MAX_CMD_RXLEN, 10, 0, 0, 0,

@@ -105,20 +105,20 @@ enum {
 	CHANNEL_27,
 };
 
-char cmd_buf[SDIOHAL_WRITE_SIZE + PUB_HEAD_RSV];
-char *tp_tx_buf[TP_TX_BUF_CNT];
+static char cmd_buf[SDIOHAL_WRITE_SIZE + PUB_HEAD_RSV];
+static char *tp_tx_buf[TP_TX_BUF_CNT];
 
-struct mchn_ops_t at_tx_ops;
-struct mchn_ops_t at_rx_ops;
-ktime_t tp_tx_start_time;
-ktime_t tp_tx_stop_time;
-ktime_t tp_rx_start_time;
-ktime_t tp_rx_stop_time;
-int tp_tx_cnt;
-int tp_tx_flag;
-int tp_tx_buf_cnt = TP_TX_BUF_CNT;
-int tp_tx_buf_len = TP_TX_BUF_LEN;
-int rx_pop_cnt;
+static struct mchn_ops_t at_tx_ops;
+static struct mchn_ops_t at_rx_ops;
+static ktime_t tp_tx_start_time;
+static ktime_t tp_tx_stop_time;
+static ktime_t tp_rx_start_time;
+static ktime_t tp_rx_stop_time;
+static int tp_tx_cnt;
+static int tp_tx_flag;
+static int tp_tx_buf_cnt = TP_TX_BUF_CNT;
+static int tp_tx_buf_len = TP_TX_BUF_LEN;
+static int rx_pop_cnt;
 #ifdef CONFIG_SPRD_DEBUG
 long int sdiohal_log_level = SDIOHAL_NORMAL_LEVEL;
 #else
@@ -356,7 +356,7 @@ struct sdiohal_test_thread_info_t {
 	struct completion tx_completed;
 };
 
-struct sdiohal_test_thread_info_t sdiohal_thread_info[] = {
+static struct sdiohal_test_thread_info_t sdiohal_thread_info[] = {
 	{
 		.thread_name = "sdiohal_tx_thread_chn6",
 		.thread_func = sdiohal_tx_thread_chn6,
@@ -556,7 +556,7 @@ static int at_list_tx_pop(int channel, struct mbuf_t *head,
 	return 0;
 }
 
-int tp_rx_cnt;
+static int tp_rx_cnt;
 static int at_list_rx_pop(int channel, struct mbuf_t *head,
 		   struct mbuf_t *tail, int num)
 {
@@ -703,7 +703,7 @@ static int sdiohal_download_firmware(void)
 }
 
 static int sdiohal_public_irq;
-struct work_struct sdiohal_int_wq;
+static struct work_struct sdiohal_int_wq;
 
 static void sdiohal_int_power_wq(struct work_struct *work)
 {

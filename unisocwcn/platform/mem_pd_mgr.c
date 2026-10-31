@@ -58,8 +58,8 @@
 #define WIFI_BEGIN_OFFSET_SYNC 12
 #define WIFI_END_OFFSET_SYNC 16
 
-struct mem_pd_t mem_pd;
-struct mem_pd_meminfo_t mem_info_cp;
+static struct mem_pd_t mem_pd;
+static struct mem_pd_meminfo_t mem_info_cp;
 
 /* return 0, no download ini; return 1, need download ini */
 unsigned int mem_pd_wifi_state(void)

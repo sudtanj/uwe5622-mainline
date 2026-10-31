@@ -31,10 +31,10 @@
 MODULE_IMPORT_NS("VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver");
 
 static struct hci_cmd_t hci_cmd;
-uint8_t device_count_db;
-const woble_config_t s_woble_config_cust = {WOBLE_MOD_ENABLE, WOBLE_SLEEP_MOD_COULD_NOT_KNOW, 0, WOBLE_SLEEP_MOD_NOT_NEED_NOTITY};
+static uint8_t device_count_db;
+static const woble_config_t s_woble_config_cust = {WOBLE_MOD_ENABLE, WOBLE_SLEEP_MOD_COULD_NOT_KNOW, 0, WOBLE_SLEEP_MOD_NOT_NEED_NOTITY};
 
-mtty_bt_wake_t bt_wake_dev_db[MAX_WAKE_DEVICE_MAX_NUM];
+static mtty_bt_wake_t bt_wake_dev_db[MAX_WAKE_DEVICE_MAX_NUM];
 
 int woble_init(void)
 {

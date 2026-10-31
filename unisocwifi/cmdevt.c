@@ -57,7 +57,7 @@ struct sprdwl_cmd {
 
 struct sprdwl_cmd g_sprdwl_cmd;
 
-const uint16_t CRC_table[] = {
+static const uint16_t CRC_table[] = {
 	0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00,
 	0x2800, 0xE401, 0xA001, 0x6C00, 0x7800, 0xB401,
 	0x5000, 0x9C01, 0x8801, 0x4400,
@@ -336,7 +336,6 @@ void sprdwl_cmd_deinit(void)
 #endif
 }
 
-extern struct sprdwl_intf_ops g_intf_ops;
 static int sprdwl_cmd_lock(struct sprdwl_cmd *cmd)
 {
 	struct sprdwl_intf *intf = (struct sprdwl_intf *)g_intf_ops.intf;

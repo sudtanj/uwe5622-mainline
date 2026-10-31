@@ -206,6 +206,7 @@ static inline u8 qos_index_2_tid(unsigned int qos_index)
 }
 
 extern struct qos_map_set g_11u_qos_map;
+extern unsigned int wmmac_ratio;
 void qos_init(struct tx_t *qos);
 unsigned int qos_match_q(void *skb, int data_offset);
 void qos_enable(int flag);

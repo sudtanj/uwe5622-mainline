@@ -19,7 +19,7 @@
 #include "msg.h"
 #include "sprdwl.h"
 
-unsigned int g_qos_enable;
+static unsigned int g_qos_enable;
 #if 0
 /*initial array of dscp map to priority
  *map array will be changed by qos remap
@@ -37,10 +37,10 @@ const unsigned char default_dscp2priomap[DSCP_MAX_VALUE] = {
 };
 #endif
 #ifdef WMMAC_WFA_CERTIFICATION
-bool g_wmmac_available[NUM_AC] = {false, false, false, false};
-u32 g_wmmac_admittedtime[NUM_AC] = {0};
-u32 g_wmmac_usedtime[NUM_AC] = {0};
-struct wmm_ac_ts_t g_sta_ts_info[NUM_TID];
+static bool g_wmmac_available[NUM_AC] = {false, false, false, false};
+static u32 g_wmmac_admittedtime[NUM_AC] = {0};
+static u32 g_wmmac_usedtime[NUM_AC] = {0};
+static struct wmm_ac_ts_t g_sta_ts_info[NUM_TID];
 unsigned int wmmac_ratio = 10;
 #endif
 

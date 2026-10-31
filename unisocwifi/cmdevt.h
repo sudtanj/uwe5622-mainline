@@ -76,6 +76,7 @@
 
 extern unsigned int wfa_cap;
 extern unsigned int disable_powersave;
+extern struct sprdwl_cmd g_sprdwl_cmd;
 enum SPRDWL_CMD_LIST {
 	WIFI_CMD_MIN = 0,
 	WIFI_CMD_ERR = WIFI_CMD_MIN,

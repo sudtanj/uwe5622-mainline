@@ -72,6 +72,8 @@ struct sprdwl_intf_ops {
 	struct mchn_ops_t *hif_ops;
 };
 
+extern struct sprdwl_intf_ops g_intf_ops;
+
 struct sdiohal_puh {
 	unsigned int pad:6;
 	unsigned int check_sum:1;

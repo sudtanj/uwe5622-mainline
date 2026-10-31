@@ -14,7 +14,6 @@
 #include <linux/vmalloc.h>
 #include "dump.h"
 
-extern bt_host_data_dump *data_dump;
 
 static void data_left_shift(unsigned char data_inout)
 {

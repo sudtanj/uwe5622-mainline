@@ -32,7 +32,7 @@ static const struct ieee80211_regdomain world_regdom = {
 	}
 };
 
-const struct ieee80211_regdomain regdom_cn = {
+static const struct ieee80211_regdomain regdom_cn = {
 	.n_reg_rules = 4,
 	.alpha2 = "CN",
 	.reg_rules = {
@@ -50,7 +50,7 @@ const struct ieee80211_regdomain regdom_cn = {
 	}
 };
 
-const struct ieee80211_regdomain regdom_us01 = {
+static const struct ieee80211_regdomain regdom_us01 = {
 	.n_reg_rules = 6,
 	.reg_rules = {
 	/* channels 1..11 */
@@ -67,7 +67,7 @@ const struct ieee80211_regdomain regdom_us01 = {
 	SPRD_REG_RULE(5745-10, 5825+10, 40, 0) }
 };
 
-const struct ieee80211_regdomain regdom_us = {
+static const struct ieee80211_regdomain regdom_us = {
 	.n_reg_rules = 5,
 	.dfs_region = NL80211_DFS_FCC,
 	.reg_rules = {
@@ -85,7 +85,7 @@ const struct ieee80211_regdomain regdom_us = {
 
 
 
-const struct ieee80211_regdomain regdom_cz_nl = {
+static const struct ieee80211_regdomain regdom_cz_nl = {
 	.n_reg_rules = 5,
 	.reg_rules = {
 	/* channels 1..11 */
@@ -100,7 +100,7 @@ const struct ieee80211_regdomain regdom_cz_nl = {
 	SPRD_REG_RULE(5500-10, 5700+10, 160, NL80211_RRF_DFS) }
 };
 
-const struct ieee80211_regdomain regdom_jp = {
+static const struct ieee80211_regdomain regdom_jp = {
 	.n_reg_rules = 7,
 	.dfs_region = NL80211_DFS_JP,
 	.reg_rules = {
@@ -120,7 +120,7 @@ const struct ieee80211_regdomain regdom_jp = {
 	SPRD_REG_RULE(5500-10, 5700+10, 160, NL80211_RRF_DFS) }
 };
 
-const struct ieee80211_regdomain regdom_tr = {
+static const struct ieee80211_regdomain regdom_tr = {
 	.n_reg_rules = 4,
 	.dfs_region = NL80211_DFS_ETSI,
 	.reg_rules = {
@@ -134,47 +134,47 @@ const struct ieee80211_regdomain regdom_tr = {
 	SPRD_REG_RULE(5500-10, 5700+10, 160, NL80211_RRF_DFS) }
 };
 
-const struct sprd_regdomain sprd_regdom_00 = {
+static const struct sprd_regdomain sprd_regdom_00 = {
 	.country_code = "00",
 	.prRegdRules = &world_regdom
 };
 
-const struct sprd_regdomain sprd_regdom_us01 = {
+static const struct sprd_regdomain sprd_regdom_us01 = {
 	.country_code = "US01",
 	.prRegdRules = &regdom_us01
 };
 
-const struct sprd_regdomain sprd_regdom_us = {
+static const struct sprd_regdomain sprd_regdom_us = {
 	.country_code = "US",
 	.prRegdRules = &regdom_us
 };
 
-const struct sprd_regdomain sprd_regdom_cn = {
+static const struct sprd_regdomain sprd_regdom_cn = {
 	.country_code = "CN",
 	.prRegdRules = &regdom_cn
 };
 
-const struct sprd_regdomain sprd_regdom_nl = {
+static const struct sprd_regdomain sprd_regdom_nl = {
 	.country_code = "NL",
 	.prRegdRules = &regdom_cz_nl
 };
 
-const struct sprd_regdomain sprd_regdom_cz = {
+static const struct sprd_regdomain sprd_regdom_cz = {
 	.country_code = "CZ",
 	.prRegdRules = &regdom_cz_nl
 };
 
-const struct sprd_regdomain sprd_regdom_jp = {
+static const struct sprd_regdomain sprd_regdom_jp = {
 	.country_code = "JP",
 	.prRegdRules = &regdom_jp
 };
 
-const struct sprd_regdomain sprd_regdom_tr = {
+static const struct sprd_regdomain sprd_regdom_tr = {
 	.country_code = "TR",
 	.prRegdRules = &regdom_tr
 };
 
-const struct sprd_regdomain *g_prRegRuleTable[] = {
+static const struct sprd_regdomain *g_prRegRuleTable[] = {
 	&sprd_regdom_00,
 	/*&sprd_regdom_us01,*/
 	&sprd_regdom_us,

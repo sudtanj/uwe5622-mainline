@@ -64,10 +64,6 @@ static void adjust_debug_level(char *buf, unsigned char offset)
 	wl_err("set sprdwl_debug_level: %d\n", sprdwl_debug_level);
 }
 #ifdef WMMAC_WFA_CERTIFICATION
-extern unsigned int vo_ratio;
-extern unsigned int vi_ratio;
-extern unsigned int be_ratio;
-extern unsigned int wmmac_ratio;
 
 static void adjust_qos_ratio(char *buf, unsigned char offset)
 {
@@ -89,7 +85,7 @@ static void adjust_qos_ratio(char *buf, unsigned char offset)
 	       vo_ratio, vi_ratio, be_ratio, wmmac_ratio);
 }
 #endif
-unsigned int new_threshold;
+static unsigned int new_threshold;
 static void adjust_tdls_threshold(char *buf, unsigned char offset)
 {
 	unsigned int value = 0;
@@ -527,9 +523,8 @@ static struct sprdwl_if_ops sprdwl_core_ops = {
 extern struct sprdwl_priv *g_sprdwl_priv;
 extern void sprdwl_cancel_scan(struct sprdwl_vif *vif);
 extern void sprdwl_cancel_sched_scan(struct sprdwl_vif *vif);
-struct completion wifi_reset_ready;
+static struct completion wifi_reset_ready;
 extern void sprdwl_net_flowcontrl(struct sprdwl_priv *priv, enum sprdwl_mode mode, bool state);
-extern struct sprdwl_cmd g_sprdwl_cmd;
 
 static void sprdwl_wifi_reset(void)
 {

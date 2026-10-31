@@ -619,7 +619,7 @@ static int bt_tx_powerchange(int channel, int is_resume)
 }
 #endif
 
-struct mchn_ops_t bt_rx_ops = {
+static struct mchn_ops_t bt_rx_ops = {
 	.channel = BT_RX_CHANNEL,
 	.hif_type = HW_TYPE_SDIO,
 	.inout = BT_RX_INOUT,
@@ -627,7 +627,7 @@ struct mchn_ops_t bt_rx_ops = {
 	.pop_link = mtty_rx_cb,
 };
 
-struct mchn_ops_t bt_tx_ops = {
+static struct mchn_ops_t bt_tx_ops = {
 	.channel = BT_TX_CHANNEL,
 	.hif_type = HW_TYPE_SDIO,
 	.inout = BT_TX_INOUT,

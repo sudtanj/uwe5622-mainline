@@ -57,7 +57,7 @@
 #endif
 
 static int (*scan_card_notify)(void);
-struct sdiohal_data_t *sdiohal_data;
+static struct sdiohal_data_t *sdiohal_data;
 static struct sdio_driver sdiohal_driver;
 
 static int sdiohal_card_lock(struct sdiohal_data_t *p_data,
@@ -569,7 +569,7 @@ struct debug_bus_t {
 	int size;
 };
 
-struct debug_bus_t bus_config[] = {
+static struct debug_bus_t bus_config[] = {
 	//{"aon",			0x00, 0x0, 0x0d + 1}, /* 23 bit*/
 	//{"pcie_usb",	0x00, 0x1, 0x17 + 1}, /* 23 bit*/
 	{"wifi",		0x00, 0x2, 0x07 + 1}, /* 23 bit*/
