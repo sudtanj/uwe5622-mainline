@@ -28,9 +28,6 @@
 #include <linux/sched/clock.h>
 #endif
 #include <wcn_bus.h>
-#ifdef CONFIG_WCN_PCIE
-#include "pcie.h"
-#endif
 #include "wcn_glb.h"
 #include "wcn_log.h"
 #include "wcn_misc.h"
@@ -45,9 +42,6 @@ u32 wcn_print_level = WCN_DEBUG_OFF;
 
 static u32 g_dumpmem_switch =  1;
 static u32 g_loopcheck_switch;
-#ifdef CONFIG_WCN_PCIE
-struct wcn_pcie_info *pcie_dev;
-#endif
 
 struct mdbg_proc_entry {
 	char *name;
@@ -84,12 +78,10 @@ void mdbg_assert_interface(char *str)
 
 	if (strlen(str) <= MDBG_ASSERT_SIZE)
 		len = strlen(str);
-#ifndef CONFIG_SC2342_INTEG
 	if (flag_reset == 1) {
 		WCN_INFO("chip in reset...\n");
 		return;
 	}
-#endif
 
 #ifdef CONFIG_WCN_LOOPCHECK
 	stop_loopcheck();
@@ -230,7 +222,6 @@ int mdbg_at_cmd_read(int channel, struct mbuf_t *head,
 	}
 
 	/*pcie didnot need atcmd_owner yet*/
-#ifndef CONFIG_WCN_PCIE
 	switch (mdbg_atcmd_owner_peek()) {
 	/* until now, KERNEL no need deal with the response from CP2 */
 	case WCN_ATCMD_KERNEL:
@@ -256,92 +247,11 @@ int mdbg_at_cmd_read(int channel, struct mbuf_t *head,
 
 		break;
 	}
-#else
-	memset(mdbg_proc->at_cmd.buf, 0, MDBG_AT_CMD_SIZE);
-	memcpy(mdbg_proc->at_cmd.buf, head->buf, data_length);
-	mdbg_proc->at_cmd.rcv_len = data_length;
-	WCN_INFO("WCND at cmd read:%s\n", (char *)(mdbg_proc->at_cmd.buf));
-	complete(&mdbg_proc->at_cmd.completed);
-	sprdwcn_bus_push_list(channel, head, tail, num);
-
-#endif
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mdbg_at_cmd_read);
 
-#ifdef CONFIG_WCN_PCIE
-static int mdbg_tx_comptele_cb(int chn, int timeout)
-{
-	WCN_INFO("%s: chn=%d, timeout=%d\n", __func__, chn, timeout);
-
-	return 0;
-}
-
-int prepare_free_buf(int chn, int size, int num)
-{
-	int ret, i;
-	struct dma_buf temp = {0};
-	struct mbuf_t *mbuf, *head, *tail;
-
-	pcie_dev = get_wcn_device_info();
-	if (!pcie_dev) {
-		WCN_ERR("%s:PCIE device link error\n", __func__);
-		return -1;
-	}
-	ret = sprdwcn_bus_list_alloc(chn, &head, &tail, &num);
-	if (ret != 0)
-		return -1;
-	for (i = 0, mbuf = head; i < num; i++) {
-		ret = dmalloc(pcie_dev, &temp, size);
-		if (ret != 0)
-			return -1;
-		mbuf->buf = (unsigned char *)(temp.vir);
-		mbuf->phy = (unsigned long)(temp.phy);
-		mbuf->len = temp.size;
-		memset(mbuf->buf, 0x0, mbuf->len);
-		mbuf = mbuf->next;
-	}
-
-	ret = sprdwcn_bus_push_list(chn, head, tail, num);
-
-	return ret;
-}
-
-static int loopcheck_prepare_buf(int chn, struct mbuf_t **head,
-				 struct mbuf_t **tail, int *num)
-{
-	int ret;
-
-	WCN_INFO("%s: chn=%d, num=%d\n", __func__, chn, *num);
-	ret = sprdwcn_bus_list_alloc(chn, head, tail, num);
-
-	return ret;
-}
-
-static int at_cmd_prepare_buf(int chn, struct mbuf_t **head,
-			      struct mbuf_t **tail, int *num)
-{
-	int ret;
-
-	WCN_INFO("%s: chn=%d, num=%d\n", __func__, chn, *num);
-	ret = sprdwcn_bus_list_alloc(chn, head, tail, num);
-
-	return ret;
-}
-
-static int assert_prepare_buf(int chn, struct mbuf_t **head,
-			      struct mbuf_t **tail, int *num)
-{
-	int ret;
-
-	WCN_INFO("%s: chn=%d, num=%d\n", __func__, chn, *num);
-	ret = sprdwcn_bus_list_alloc(chn, head, tail, num);
-
-	return ret;
-}
-
-#endif
 
 static ssize_t mdbg_snap_shoot_seq_write(struct file *file,
 					 const char __user *buffer,
@@ -360,18 +270,9 @@ static void *mdbg_snap_shoot_seq_start(struct seq_file *m, loff_t *pos)
 	if (!*(u32 *)pos) {
 		buf = mdbg_proc->snap_shoot.buf;
 		memset(buf, 0, MDBG_SNAP_SHOOT_SIZE);
-#ifdef CONFIG_SC2342_INTEG
-		ret = mdbg_snap_shoot_iram(buf);
-		if (ret < 0) {
-			seq_puts(m, "==== IRAM DATA SNAP SHOOT FAIL ====\n");
-			return NULL;
-		}
-		seq_puts(m, "==== IRAM DATA SNAP SHOOT START ====\n");
-#else
 		WCN_ERR("not support iram snap shoot! ret %d\n", ret);
 		seq_puts(m, "==== IRAM DATA SNAP SHOOT NOT SUPPORT ====\n");
 		return NULL;
-#endif
 	}
 
 	pdata = mdbg_proc->snap_shoot.buf + *(u32 *)pos * 16;
@@ -606,11 +507,6 @@ loopcheck_out:
 static ssize_t mdbg_proc_write(struct file *filp,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
-#ifdef CONFIG_WCN_PCIE
-	struct mbuf_t *head = NULL, *tail = NULL, *mbuf = NULL;
-	int num = 1;
-	struct dma_buf dm = {0};
-#endif
 	char x;
 	int ret;
 #ifdef MDBG_PROC_CMD_DEBUG
@@ -848,32 +744,6 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		return count;
 	}
 
-#ifdef CONFIG_SC2342_INTEG
-	if (strncmp(mdbg_proc->write_buf, "dumpmem", 7) == 0) {
-		if (g_dumpmem_switch == 0)
-			return count;
-		WCN_INFO("start mdbg dumpmem");
-		sprdwcn_bus_set_carddump_status(true);
-		mdbg_dump_mem();
-		return count;
-	}
-	if (strncmp(mdbg_proc->write_buf, "holdcp2cpu",
-		strlen("holdcp2cpu")) == 0) {
-		mdbg_hold_cpu();
-		WCN_INFO("hold cp cpu\n");
-		return count;
-	}
-	if (strncmp(mdbg_proc->write_buf, "rebootwcn", 9) == 0 ||
-		strncmp(mdbg_proc->write_buf, "rebootmarlin", 12) == 0) {
-		WCN_INFO("marlin gnss need reset\n");
-		WCN_INFO("fail_count is value %d\n", mdbg_proc->fail_count);
-		mdbg_proc->fail_count = 0;
-		sprdwcn_bus_set_carddump_status(false);
-		wcn_device_poweroff();
-		WCN_INFO("marlin gnss  reset finish!\n");
-		return count;
-	}
-#else
 	if (strncmp(mdbg_proc->write_buf, "dumpmem", 7) == 0) {
 		sprdwcn_bus_set_carddump_status(true);
 
@@ -929,7 +799,6 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		}
 		return count;
 	}
-#endif
 
 	/*
 	 * One AP Code used for many different CP2.
@@ -938,7 +807,6 @@ static ssize_t mdbg_proc_write(struct file *filp,
 	 * to disable SharkLE-Marlin2/SharkL3-Marlin2
 	 * Pike2-Marlin2.
 	 */
-#ifndef CONFIG_SC2342_INTEG
 	/* loopcheck add kernel time ms/1000 */
 	if (strncmp(mdbg_proc->write_buf, "at+loopcheck", 12) == 0) {
 		/* struct timespec now; */
@@ -953,40 +821,9 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		count = strlen(mdbg_proc->write_buf);
 		WCN_INFO("%s, count = %d", mdbg_proc->write_buf, (int)count);
 	}
-#endif
 
-#ifdef CONFIG_WCN_PCIE
-	pcie_dev = get_wcn_device_info();
-	if (!pcie_dev) {
-		WCN_ERR("%s:PCIE device link error\n", __func__);
-		return -1;
-	}
-	ret = sprdwcn_bus_list_alloc(0, &head, &tail, &num);
-	if (ret || head == NULL || tail == NULL) {
-		WCN_ERR("%s:%d mbuf_link_alloc fail\n", __func__, __LINE__);
-		return -1;
-	}
-
-	ret = dmalloc(pcie_dev, &dm, count);
-	if (ret != 0)
-		return -1;
-	mbuf = head;
-	mbuf->buf = (unsigned char *)(dm.vir);
-	mbuf->phy = (unsigned long)(dm.phy);
-	mbuf->len = dm.size;
-	memset(mbuf->buf, 0x0, mbuf->len);
-	memcpy(mbuf->buf, mdbg_proc->write_buf, count);
-	mbuf->next = NULL;
-	WCN_INFO("mbuf->buf:%s\n", mbuf->buf);
-
-	ret = sprdwcn_bus_push_list(0, head, tail, num);
-	if (ret)
-		WCN_INFO("sprdwcn_bus_push_list error=%d\n", ret);
-
-#else
 	if (marlin_get_power_state())
 		mdbg_send_atcmd(mdbg_proc->write_buf, count, WCN_ATCMD_WCND);
-#endif
 	return count;
 }
 
@@ -1057,46 +894,6 @@ int mdbg_memory_alloc(void)
  * TX: pop_link(tx_cb), tx_complete(all_node_finish_tx_cb)
  * Rx: pop_link(rx_cb), push_link(prepare free buf)
  */
-#ifdef CONFIG_WCN_PCIE
-struct mchn_ops_t mdbg_proc_ops[MDBG_ASSERT_RX_OPS + 1] = {
-	{
-		.channel = WCN_AT_TX,
-		.inout = WCNBUS_TX,
-		.pool_size = 5,
-		.hif_type = 1,
-		.cb_in_irq = 1,
-		.pop_link = mdbg_tx_cb,
-		.tx_complete = mdbg_tx_comptele_cb,
-	},
-	{
-		.channel = WCN_LOOPCHECK_RX,
-		.inout = WCNBUS_RX,
-		.pool_size = 5,
-		.hif_type = 1,
-		.cb_in_irq = 1,
-		.pop_link = mdbg_loopcheck_read,
-		.push_link = loopcheck_prepare_buf,
-	},
-	{
-		.channel = WCN_AT_RX,
-		.inout = WCNBUS_RX,
-		.pool_size = 5,
-		.hif_type = 1,
-		.cb_in_irq = 1,
-		.pop_link = mdbg_at_cmd_read,
-		.push_link = at_cmd_prepare_buf,
-	},
-	{
-		.channel = WCN_ASSERT_RX,
-		.inout = WCNBUS_RX,
-		.pool_size = 5,
-		.hif_type = 1,
-		.cb_in_irq = 1,
-		.pop_link = mdbg_assert_read,
-		.push_link = assert_prepare_buf,
-	},
-};
-#else
 struct mchn_ops_t mdbg_proc_ops[MDBG_ASSERT_RX_OPS + 1] = {
 	{
 		.channel = WCN_AT_TX,
@@ -1104,40 +901,27 @@ struct mchn_ops_t mdbg_proc_ops[MDBG_ASSERT_RX_OPS + 1] = {
 		.pool_size = 5,
 		.pop_link = mdbg_tx_cb,
 		.power_notify = mdbg_tx_power_notify,
-#ifdef CONFIG_WCN_USB
-		.hif_type = HW_TYPE_USB,
-#endif
 	},
 	{
 		.channel = WCN_LOOPCHECK_RX,
 		.inout = WCNBUS_RX,
 		.pool_size = 1,
 		.pop_link = mdbg_loopcheck_read,
-#ifdef CONFIG_WCN_USB
-		.hif_type = HW_TYPE_USB,
-#endif
 	},
 	{
 		.channel = WCN_AT_RX,
 		.inout = WCNBUS_RX,
 		.pool_size = 1,
 		.pop_link = mdbg_at_cmd_read,
-#ifdef CONFIG_WCN_USB
-		.hif_type = HW_TYPE_USB,
-#endif
 	},
 	{
 		.channel = WCN_ASSERT_RX,
 		.inout = WCNBUS_RX,
 		.pool_size = 1,
 		.pop_link = mdbg_assert_read,
-#ifdef CONFIG_WCN_USB
-		.hif_type = HW_TYPE_USB,
-#endif
 
 	},
 };
-#endif
 
 static void mdbg_fs_channel_destroy(void)
 {
@@ -1153,12 +937,6 @@ static void mdbg_fs_channel_init(void)
 
 	for (i = 0; i <= MDBG_ASSERT_RX_OPS; i++)
 		sprdwcn_bus_chn_init(&mdbg_proc_ops[i]);
-#ifdef CONFIG_WCN_PCIE
-	/* PCIe: malloc for rx buf */
-	prepare_free_buf(12, 256, 1);
-	prepare_free_buf(13, 256, 1);
-	prepare_free_buf(14, 256, 1);
-#endif
 }
 
 static  void mdbg_memory_free(void)

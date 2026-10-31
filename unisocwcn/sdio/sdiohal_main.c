@@ -41,29 +41,6 @@
 #include "sdiohal.h"
 #include "wcn_glb.h"
 
-#ifdef CONFIG_HISI_BOARD
-#include "mach/hardware.h"
-#endif
-
-#ifdef CONFIG_AML_BOARD
-#include <linux/amlogic/aml_gpio_consumer.h>
-
-extern int wifi_irq_num(void);
-extern int wifi_irq_trigger_level(void);
-extern void sdio_reinit(void);
-extern void sdio_clk_always_on(int on);
-extern void sdio_set_max_reqsz(unsigned int size);
-#endif
-
-//#ifdef CONFIG_RK_BOARD
-//extern int rockchip_wifi_set_carddetect(int val);
-//#endif
-
-#ifdef CONFIG_AW_BOARD
-extern int sunxi_wlan_get_bus_index(void);
-extern int sunxi_wlan_get_oob_irq(void);
-extern int sunxi_wlan_get_oob_irq_flags(void);
-#endif
 
 #ifndef MMC_CAP2_SDIO_IRQ_NOTHREAD
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
@@ -1218,18 +1195,6 @@ static int sdiohal_host_irq_init(unsigned int irq_gpio_num)
 
 	sdiohal_debug("%s enter\n", __func__);
 
-#ifdef CONFIG_AML_BOARD
-	/* As for amlogic platform, gpio trigger type low will request fail. */
-	p_data->irq_num = wifi_irq_num();
-	if (wifi_irq_trigger_level() == GPIO_IRQ_LOW)
-		p_data->irq_trigger_type = IRQF_TRIGGER_LOW;
-	else
-		p_data->irq_trigger_type = IRQF_TRIGGER_HIGH;
-	sdiohal_info("%s sdio gpio irq num:%d, trigger_type:%s\n",
-		     __func__, p_data->irq_num,
-		     ((p_data->irq_trigger_type == IRQF_TRIGGER_LOW) ?
-		     "low" : "high"));
-#else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (IS_ERR_OR_NULL(desc))
 		return ret;
@@ -1260,7 +1225,6 @@ static int sdiohal_host_irq_init(unsigned int irq_gpio_num)
 
 	p_data->irq_num = gpio_to_irq(irq_gpio_num);
 	p_data->irq_trigger_type = IRQF_TRIGGER_HIGH;
-#endif
 #endif
 
 	return ret;
@@ -1435,7 +1399,7 @@ static int sdiohal_parse_dt(void)
 	if (sdio_node == NULL)
 		sdiohal_info("not config sdio host node.");
 
-#if (defined(CONFIG_RK_BOARD) || defined(CONFIG_AW_BOARD))
+#if (defined(CONFIG_AW_BOARD))
 	/* will get host at sdiohal_probe */
 	return 0;
 #endif
@@ -1814,12 +1778,10 @@ int sdiohal_runtime_put(void)
 		(p_data->irq_num > 0))
 		disable_irq(p_data->irq_num);
 
-#ifndef CONFIG_AML_BOARD
 	/* As for amlogic platform, NOT remove card
 	 * after chip power off. So won't probe again.
 	 */
 	atomic_set(&p_data->xmit_start, 0);
-#endif
 	xmit_cnt = atomic_read(&p_data->xmit_cnt);
 	while ((xmit_cnt > 0) &&
 		(xmit_cnt < SDIOHAL_REMOVE_CARD_VAL)) {
@@ -1906,23 +1868,6 @@ void sdiohal_reset(bool full_reset)
 }
 #endif
 
-#ifdef CONFIG_HISI_BOARD
-#define REG_BASE_CTRL __io_address(0xf8a20008)
-void sdiohal_set_card_present(bool enable)
-{
-	u32 regval;
-
-	sdiohal_info("%s enable:%d\n", __func__, enable);
-
-	/*set card_detect low to detect card*/
-	regval = readl(REG_BASE_CTRL);
-	if (enable)
-		regval |= 0x1;
-	else
-		regval &= ~0x1;
-	writel(regval, REG_BASE_CTRL);
-}
-#endif
 
 static int sdiohal_probe(struct sdio_func *func,
 	const struct sdio_device_id *id)
@@ -1936,17 +1881,6 @@ static int sdiohal_probe(struct sdio_func *func,
 		     __func__, func->class, func->vendor, func->device,
 		     func->num, host->ios.clock);
 
-#ifdef CONFIG_AML_BOARD
-	if (p_data->irq_type == SDIOHAL_RX_INBAND_IRQ) {
-		/* disable auto clock, sdio clock will be always on. */
-		sdio_clk_always_on(1);
-	}
-	/*
-	 * setting sdio max request size to 512kB
-	 * to improve transmission efficiency.
-	 */
-	sdio_set_max_reqsz(0x80000);
-#endif
 
 	ret = sdiohal_get_dev_func(func);
 	if (ret < 0) {
@@ -2008,14 +1942,6 @@ static int sdiohal_probe(struct sdio_func *func,
 
 	/* the card is nonremovable */
 	p_data->sdio_dev_host->caps |= MMC_CAP_NONREMOVABLE;
-#ifdef CONFIG_RK_BOARD
-	/* Some RK platform, if config caps with MMC_CAP_SDIO_IRQ, will set
-	 * caps2 with MMC_CAP2_SDIO_IRQ_NOTHREAD at the same time.
-	 * This is unexpected. So clear this status.
-	 */
-	if (p_data->irq_type == SDIOHAL_RX_INBAND_IRQ)
-		p_data->sdio_dev_host->caps2 &= ~MMC_CAP2_SDIO_IRQ_NOTHREAD;
-#endif
 
 	/* calling rescan callback to inform download */
 	if (scan_card_notify != NULL)
@@ -2034,9 +1960,6 @@ static void sdiohal_remove(struct sdio_func *func)
 
 	sdiohal_info("[%s]enter\n", __func__);
 
-#ifdef CONFIG_HISI_BOARD
-	sdiohal_set_card_present(0);
-#endif
 
 	if (WCN_CARD_EXIST(&p_data->xmit_cnt))
 		atomic_add(SDIOHAL_REMOVE_CARD_VAL, &p_data->xmit_cnt);
@@ -2116,15 +2039,10 @@ void sdiohal_remove_card(void)
 {
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 #ifdef CONFIG_AW_BOARD
-//	int wlan_bus_index = sunxi_wlan_get_bus_index();
 	/* don't need to remove sdio card. */
 	return;
 #endif
 
-#ifdef CONFIG_AML_BOARD
-	/* As for amlogic platform, don't need to remove sdio card. */
-	return;
-#endif
 
 	if (!WCN_CARD_EXIST(&p_data->xmit_cnt))
 		return;
@@ -2137,16 +2055,8 @@ void sdiohal_remove_card(void)
 
 	init_completion(&p_data->remove_done);
 
-#ifdef CONFIG_HISI_BOARD
-	sdiohal_set_card_present(0);
-#endif
-
-//#ifdef CONFIG_RK_BOARD
-//	rockchip_wifi_set_carddetect(0);
-//#endif
 
 #ifdef CONFIG_AW_BOARD
-//	sunxi_mmc_rescan_card(wlan_bus_index);
 	return;
 #endif
 
@@ -2215,94 +2125,18 @@ int sdiohal_scan_card(void)
 {
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
 	int ret = 0;
-#ifdef CONFIG_AML_BOARD
-	struct sdio_func *func = p_data->sdio_func[FUNC_1];
-#endif
-#if 0
-	int wlan_bus_index;
-#endif
 
 	sdiohal_info("sdiohal_scan_card\n");
 
-#ifdef CONFIG_AML_BOARD
-	if (p_data->irq_type == SDIOHAL_RX_INBAND_IRQ)
-		sdio_clk_always_on(0);
-	/* As for amlogic platform, Not remove sdio card.
-	 * When system is booting up, amlogic platform will power
-	 * up and get wifi module sdio id to know which vendor.
-	 * Then power down. In order to not rescan sdio card,
-	 * reset and reinit sdio host and slave is needed.
-	 */
-	sdio_reinit();
-#endif
 
 	if (WCN_CARD_EXIST(&p_data->xmit_cnt)) {
 		sdiohal_info("Already exist card!, xmit_cnt=0x%x\n",
 			     atomic_read(&p_data->xmit_cnt));
-#ifdef CONFIG_AML_BOARD
-		/* As for amlogic platform, Not remove sdio card.
-		 * But will reset sdio host, sdio slave need to be reset.
-		 * If reset pin NC, don't need to reset sdio slave.
-		 */
-		if (p_data->sdio_dev_host != NULL)
-			mmc_power_restore_host(p_data->sdio_dev_host);
-		if (p_data->irq_type == SDIOHAL_RX_INBAND_IRQ) {
-			/* disable auto clock, sdio clock will be always on. */
-			sdio_clk_always_on(1);
-		}
-		/*
-		 * setting sdio max request size to 512kB
-		 * to improve transmission efficiency.
-		 */
-		sdio_set_max_reqsz(0x80000);
-
-		if (!p_data->pwrseq) {
-			/* Enable Function 1 */
-			sdio_claim_host(p_data->sdio_func[FUNC_1]);
-			ret = sdio_enable_func(p_data->sdio_func[FUNC_1]);
-			sdio_set_block_size(p_data->sdio_func[FUNC_1],
-					SDIOHAL_BLK_SIZE);
-			p_data->sdio_func[FUNC_1]->max_blksize =
-				SDIOHAL_BLK_SIZE;
-			sdio_release_host(p_data->sdio_func[FUNC_1]);
-			if (ret < 0) {
-				sdiohal_err("enable func1 err!!! ret is %d\n",
-					    ret);
-				return ret;
-			}
-			sdiohal_info("enable func1 ok\n");
-		} else
-			pm_runtime_put_noidle(&func->dev);
-		/* calling rescan callback to inform download */
-		if (scan_card_notify != NULL)
-			scan_card_notify();
-		sdiohal_info("scan end!\n");
-		return 0;
-#endif
 
 		sdiohal_remove_card();
 		msleep(100);
 	}
 
-#ifdef CONFIG_HISI_BOARD
-	/* only for hisi mv300 scan card mechanism */
-	sdiohal_set_card_present(1);
-#endif
-
-//#ifdef CONFIG_RK_BOARD
-//	rockchip_wifi_set_carddetect(1);
-//#endif
-
-#if 0
-	wlan_bus_index = sunxi_wlan_get_bus_index();
-	if (wlan_bus_index < 0) {
-		ret = wlan_bus_index;
-		sdiohal_err("%s sunxi_wlan_get_bus_index=%d err!",
-			    __func__, ret);
-		return ret;
-	}
-	sunxi_mmc_rescan_card(wlan_bus_index);
-#endif
 
 	sdiohal_lock_scan_ws();
 	sdiohal_resume_check();

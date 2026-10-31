@@ -60,45 +60,9 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
-#ifdef CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX
-#include "../fw/firmware_hex.h"
-#endif
-
-#ifdef CONFIG_AML_BOARD
-#include <linux/amlogic/aml_gpio_consumer.h>
-
-extern int wifi_irq_trigger_level(void);
-#ifdef CONFIG_WCN_RESET_PIN_CONNECTED
-extern void extern_bt_set_enable(int is_on);
-#endif
-extern void extern_wifi_set_enable(int is_on);
-#endif
-
-#ifdef CONFIG_HISI_BOARD
-#include "vendor/hisilicon/hi_drv_gpio.h"
-
-/* reset pin connect with gpio4_2 */
-#define RTL_REG_RST_GPIO	(4*8 + 2)
-
-enum hi_GPIO_DIR_E {
-	HI_DIR_OUT = 0,
-	HI_DIR_IN  = 1,
-};
-#endif
 
 #ifdef CONFIG_AW_BOARD
 #include <linux/pm_wakeirq.h>
-//extern void sunxi_wlan_set_power(int on);
-extern int sunxi_wlan_get_oob_irq(void);
-extern int sunxi_wlan_get_oob_irq_flags(void);
-
-struct gpio_config {
-	u32	gpio;
-	u32	mul_sel;
-	u32	pull;
-	u32	drv_level;
-	u32	data;
-};
 #endif
 
 #define WCN_FW_MAX_PATH_NUM	3
@@ -323,10 +287,6 @@ static unsigned int clk_wait_val;
 static unsigned int cp_clk_wait_val;
 static unsigned int marlin2_clk_wait_reg;
 
-#ifdef CONFIG_WCN_PMIC
-/* for PMIC control */
-static struct regmap *reg_map;
-#endif
 
 #define IMG_HEAD_MAGIC "WCNM"
 #define IMG_HEAD_MAGIC_COMBINE "WCNE"
@@ -359,11 +319,7 @@ static struct regmap *reg_map;
 #define AFC_CALI_READ_FINISH 0x12121212
 #define WCN_AFC_CALI_PATH "/productinfo/wcn/tsx_bt_data.txt"
 
-#ifdef CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX
-#define POWER_WQ_DELAYED_MS 0
-#else
 #define POWER_WQ_DELAYED_MS 7500
-#endif
 
 /* #define E2S(x) { case x: return #x; } */
 
@@ -390,12 +346,6 @@ enum wcn_hw_type wcn_get_hw_if_type(void)
 {
 #if defined(CONFIG_WCN_SDIO)
 	return HW_TYPE_SDIO;
-#elif defined(CONFIG_WCN_PCIE)
-	return HW_TYPE_PCIE;
-#elif defined(CONFIG_WCN_SIPC)
-	return HW_TYPE_SIPC;
-#elif defined(CONFIG_WCN_USB)
-	return HW_TYPE_USB;
 #else
 	return HW_TYPE_UNKNOWN;
 #endif
@@ -425,9 +375,6 @@ unsigned int marlin_get_wcn_chipid(void)
 {
 	int ret;
 	static unsigned long int chip_id;
-#ifdef CONFIG_WCN_USB
-	return MARLIN3E_AA_CHIPID;
-#endif
 	if (likely(chip_id))
 		return chip_id;
 
@@ -1021,12 +968,10 @@ struct marlin_firmware {
 static int marlin_request_firmware(struct marlin_firmware **mfirmware_p)
 {
 	struct marlin_firmware *mfirmware;
-#ifndef CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX
 	unsigned char load_fw_cnt = 0;
 	const void *buffer;
 	const struct firmware *firmware;
 	int ret = 0;
-#endif
 
 	*mfirmware_p = NULL;
 	mfirmware = kmalloc(sizeof(struct marlin_firmware), GFP_KERNEL);
@@ -1040,16 +985,6 @@ static int marlin_request_firmware(struct marlin_firmware **mfirmware_p)
 	marlin_dev->is_btwf_in_sysfs = 1;
 #endif
 
-#ifdef CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX
-
-	/* Some customer (amlogic) download fw from /fw/wcnmodem.bin.hex */
-	WCN_INFO("marlin %s from wcnmodem.bin.hex start!\n", __func__);
-	mfirmware->data = firmware_hex_buf;
-	mfirmware->size = FIRMWARE_HEX_SIZE;
-	mfirmware->is_from_fs = 0;
-	mfirmware->priv = firmware_hex_buf;
-
-#else /* CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX */
 
 	if (marlin_dev->is_btwf_in_sysfs != 1) {
 		/*
@@ -1118,7 +1053,6 @@ load_fw:
 		mfirmware->priv = buffer;
 	}
 
-#endif /* CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX */
 
 	memcpy(functionmask, mfirmware->data, 8);
 	if ((functionmask[0] == 0x00) && (functionmask[1] == 0x00)) {
@@ -1200,48 +1134,6 @@ static int marlin_firmware_parse_image(struct marlin_firmware *mfirmware)
 	return 0;
 }
 
-#ifdef CONFIG_WCN_USB
-int marlin_firmware_write(struct marlin_firmware *fw)
-{
-	int i;
-	int img_count;
-	const struct combin_img_info *img_info;
-	int ret;
-
-	if (!bin_magic_is(fw->data, IMG_HEAD_MAGIC_COMBINE)) {
-		WCN_ERR("Marlin3 USB image must have maigc WCNE\n");
-		ret = marlin_firmware_download_usb(0x40500000, fw->data,
-				0x56F00, PACKET_SIZE);
-		if (ret) {
-			WCN_ERR("%s usb download error\n", __func__);
-			return -1;
-		}
-		marlin_firmware_download_exec_usb(WCN_USB_FW_ADDR);
-		return 0;
-	}
-
-	img_count = marlin_fw_get_img_count(fw->data);
-	img_info = marlin_firmware_get_combin_info(fw->data);
-
-	/* for every img_info */
-	for (i = 0; i < img_count; i++) {
-		if (img_info[i].size + img_info[i].offset > fw->size) {
-			WCN_ERR("%s memory crossover\n", __func__);
-			return -1;
-		}
-		ret = marlin_firmware_download_usb(img_info[i].addr,
-				fw->data + img_info[i].offset,
-				img_info[i].size, PACKET_SIZE);
-		if (ret) {
-			WCN_ERR("%s usb download error\n", __func__);
-			return -1;
-		}
-	}
-
-	marlin_firmware_download_exec_usb(WCN_USB_FW_ADDR);
-	return 0;
-}
-#else
 static int marlin_firmware_write(struct marlin_firmware *mfirmware)
 {
 	int i = 0;
@@ -1286,7 +1178,6 @@ static int marlin_firmware_write(struct marlin_firmware *mfirmware)
 
 	return 0;
 }
-#endif
 
 static void marlin_release_firmware(struct marlin_firmware *mfirmware)
 {
@@ -1400,14 +1291,6 @@ static int btwifi_download_firmware(void)
 		goto OUT;
 	}
 
-#ifdef CONFIG_WCN_USB
-	/**
-	 * marlin3e chip romcode cause this:
-	 * if you didn't send start_usb command
-	 * then you can't read chip id and donwload code.
-	 * so, we must sent start_usb command in here.
-	 */
-#endif
 
 	ret = marlin_firmware_parse_image(mfirmware);
 	if (ret) {
@@ -1578,111 +1461,11 @@ static int marlin_parse_dt(struct platform_device *pdev)
 #ifdef CONFIG_WCN_PARSE_DTS
 	struct device_node *np = pdev->dev.of_node;
 #endif
-#ifdef CONFIG_WCN_PMIC
-	struct regmap *pmu_apb_gpr;
-	struct wcn_clock_info *clk;
-#endif
 	int ret = -1;
 
 	if (!marlin_dev)
 		return ret;
 
-#if defined(CONFIG_WCN_PARSE_DTS) && defined(CONFIG_WCN_PMIC)
-	clk = &marlin_dev->clk_xtal_26m;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
-	clk->gpio = devm_gpiod_get_optional(&pdev->dev, "xtal-26m-clk-type-gpio",
-					GPIOD_IN);
-	if (IS_ERR(clk->gpio)) {
-		ret = PTR_ERR(clk->gpio);
-		WCN_ERR("xtal-26m-clk gpio get err: %d\n", ret);
-		return ret;
-	}
-	if (!clk->gpio)
-		WCN_INFO("xtal-26m-clk gpio not config\n");
-#else
-	clk->gpio = of_get_named_gpio(np, "xtal-26m-clk-type-gpio", 0);
-	if (!gpio_is_valid(clk->gpio))
-		WCN_INFO("xtal-26m-clk gpio not config\n");
-#endif
-
-	/* xtal-26m-clk-type has priority over than xtal-26m-clk-type-gpio */
-	ret = of_property_read_string(np, "xtal-26m-clk-type",
-				      (const char **)&buf);
-	if (!ret) {
-		WCN_INFO("force config xtal 26m clk %s\n", buf);
-		if (!strncmp(buf, "TCXO", 4))
-			clk->type = WCN_CLOCK_TYPE_TCXO;
-		else if (!strncmp(buf, "TSX", 3))
-			clk->type = WCN_CLOCK_TYPE_TSX;
-		else
-			WCN_ERR("force config xtal 26m clk %s err!\n", buf);
-	} else {
-		WCN_INFO("unforce config xtal 26m clk:%d", clk->type);
-	}
-
-	marlin_dev->dvdd12 = devm_regulator_get(&pdev->dev, "dvdd12");
-	if (IS_ERR(marlin_dev->dvdd12)) {
-		WCN_ERR("Get regulator of dvdd12 error!\n");
-		WCN_ERR("Maybe share the power with mem\n");
-	}
-
-	if (of_property_read_bool(np, "bound-avdd12")) {
-		WCN_INFO("forbid avdd12 power ctrl\n");
-		marlin_dev->bound_avdd12 = true;
-	} else {
-		WCN_INFO("do avdd12 power ctrl\n");
-		marlin_dev->bound_avdd12 = false;
-	}
-
-	marlin_dev->avdd12 = devm_regulator_get(&pdev->dev, "avdd12");
-	if (IS_ERR(marlin_dev->avdd12)) {
-		WCN_ERR("avdd12 err =%ld\n", PTR_ERR(marlin_dev->avdd12));
-		if (PTR_ERR(marlin_dev->avdd12) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		WCN_ERR("Get regulator of avdd12 error!\n");
-	}
-
-	marlin_dev->avdd33 = devm_regulator_get(&pdev->dev, "avdd33");
-	if (IS_ERR(marlin_dev->avdd33)) {
-		if (PTR_ERR(marlin_dev->avdd33) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		WCN_ERR("Get regulator of avdd33 error!\n");
-	}
-
-	marlin_dev->dcxo18 = devm_regulator_get(&pdev->dev, "dcxo18");
-	if (IS_ERR(marlin_dev->dcxo18)) {
-		if (PTR_ERR(marlin_dev->dcxo18) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		WCN_ERR("Get regulator of dcxo18 error!\n");
-	}
-
-	if (of_property_read_bool(np, "bound-dcxo18")) {
-		WCN_INFO("forbid dcxo18 power ctrl\n");
-		marlin_dev->bound_dcxo18 = true;
-	} else {
-		WCN_INFO("do dcxo18 power ctrl\n");
-		marlin_dev->bound_dcxo18 = false;
-	}
-
-	marlin_dev->clk_32k = devm_clk_get(&pdev->dev, "clk_32k");
-	if (IS_ERR(marlin_dev->clk_32k)) {
-		WCN_ERR("can't get wcn clock dts config: clk_32k\n");
-		return -1;
-	}
-
-	marlin_dev->clk_parent = devm_clk_get(&pdev->dev, "source");
-	if (IS_ERR(marlin_dev->clk_parent)) {
-		WCN_ERR("can't get wcn clock dts config: source\n");
-		return -1;
-	}
-	clk_set_parent(marlin_dev->clk_32k, marlin_dev->clk_parent);
-
-	marlin_dev->clk_enable = devm_clk_get(&pdev->dev, "enable");
-	if (IS_ERR(marlin_dev->clk_enable)) {
-		WCN_ERR("can't get wcn clock dts config: enable\n");
-		return -1;
-	}
-#endif /* end of CONFIG_WCN_PARSE_DTS and CONFIG_WCN_PMIC */
 
 #ifdef CONFIG_WCN_PARSE_DTS
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
@@ -1785,17 +1568,6 @@ static int marlin_parse_dt(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_WCN_PARSE_DTS
-#ifdef CONFIG_WCN_PMIC
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
-	/* GPIO managed automatically with devm_gpiod_get */
-#else
-	if (gpio_is_valid(clk->gpio)) {
-		ret = gpio_request(clk->gpio, "wcn_xtal_26m_type");
-		if (ret)
-			WCN_ERR("xtal 26m gpio request err: %d\n", ret);
-	}
-#endif
-#endif
 
 	ret = of_property_read_string(np, "unisoc,btwf-file-name",
 				      (const char **)&marlin_dev->btwf_path);
@@ -1927,26 +1699,6 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	}
 #endif
 
-#if defined(CONFIG_WCN_PARSE_DTS) && defined(CONFIG_WCN_PMIC)
-	pmu_apb_gpr = syscon_regmap_lookup_by_phandle(np,
-				"unisoc,syscon-pmu-apb");
-	if (IS_ERR(pmu_apb_gpr)) {
-		WCN_ERR("%s:failed to find pmu_apb_gpr(26M)(ignore)\n",
-				__func__);
-		return -EINVAL;
-	}
-	ret = regmap_read(pmu_apb_gpr, REG_PMU_APB_XTL_WAIT_CNT0,
-					&clk_wait_val);
-	WCN_INFO("marlin2 clk_wait value is 0x%x\n", clk_wait_val);
-
-	ret = of_property_read_u32(np, "unisoc,reg-m2-apb-xtl-wait-addr",
-			&marlin2_clk_wait_reg);
-	if (ret) {
-		WCN_ERR("Did not find reg-m2-apb-xtl-wait-addr\n");
-		return -EINVAL;
-	}
-	WCN_INFO("marlin2 clk reg is 0x%x\n", marlin2_clk_wait_reg);
-#endif
 
 	return 0;
 }
@@ -2151,8 +1903,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 {
 	union wcn_sdiohal_config sdio_cfg = {0};
 
-#if (defined(CONFIG_HISI_BOARD) || defined(CONFIG_AML_BOARD) ||\
-	defined(CONFIG_RK_BOARD) || defined(CONFIG_AW_BOARD))
+#if (defined(CONFIG_AW_BOARD))
 	/* Vendor config */
 
 	/* bit[0]: sdio_config_en:
@@ -2207,25 +1958,8 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	if (marlin_get_bt_wl_wake_host_en() & BIT(BT_WAKE_HOST)) {
 		sdio_cfg.cfg.bt_wake_host_en = 1;
 		WCN_DEBUG("sdio_config bt_wake_host:[en]\n");
-#if defined(CONFIG_HISI_BOARD)
-		/*
-		 * Hisi only support wakeup by:
-		 * high level - low level for 200ms -high level
-		 */
-		sdio_cfg.cfg.bt_wake_host_trigger_type = 0;
-		WCN_INFO("sdio_config bt_wake_host trigger:[low]\n");
-#elif defined(CONFIG_AML_BOARD)
-		if (wifi_irq_trigger_level() == GPIO_IRQ_LOW) {
-			sdio_cfg.cfg.bt_wake_host_trigger_type = 0;
-			WCN_INFO("sdio_config bt_wake_host trigger:[low]\n");
-		} else {
-			sdio_cfg.cfg.bt_wake_host_trigger_type = 3;
-			WCN_INFO("sdio_config bt_wake_host trigger:[high]\n");
-		}
-#else
 		sdio_cfg.cfg.bt_wake_host_trigger_type = 3;
 		WCN_INFO("sdio_config bt_wake_host trigger:[high]\n");
-#endif
 	}
 
 	/* bit[12:11]: sdio_irq_type:
@@ -2238,12 +1972,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 		sdio_cfg.cfg.sdio_irq_type = 1;
 		WCN_INFO("sdio_config irq:[inband]\n");
 	} else {
-#if defined(CONFIG_AML_BOARD)
-		sdio_cfg.cfg.sdio_irq_type = 3;
-		WCN_INFO("sdio_config sdio_irq:[gpio13]\n");
-#else
 		WCN_INFO("sdio_config sdio_irq:[gpio1]\n");
-#endif
 	}
 
 	/*
@@ -2255,15 +1984,6 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	 * 11:pubint gpio irq trigger type high
 	 */
 	if (sprdwcn_bus_get_irq_type() == 0) {
-#if defined(CONFIG_AML_BOARD)
-		if (wifi_irq_trigger_level() == GPIO_IRQ_LOW) {
-			sdio_cfg.cfg.sdio_irq_trigger_type = 0;
-			WCN_INFO("sdio_config sdio_irq trigger:[low]\n");
-		} else {
-			sdio_cfg.cfg.sdio_irq_trigger_type = 3;
-			WCN_INFO("sdio_config sdio_irq trigger:[high]\n");
-		}
-#endif
 	}
 
 	/*
@@ -2279,25 +1999,8 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	if (marlin_get_bt_wl_wake_host_en() & BIT(WL_WAKE_HOST)) {
 		sdio_cfg.cfg.wl_wake_host_en = 1;
 		WCN_DEBUG("sdio_config wl_wake_host:[en]\n");
-#if defined(CONFIG_HISI_BOARD)
-		/*
-		 * Hisi only support wakeup by:
-		 * high level - low level for 200ms -high level
-		 */
-		sdio_cfg.cfg.wl_wake_host_trigger_type = 0;
-		WCN_INFO("sdio_config wl_wake_host trigger:[low]\n");
-#elif defined(CONFIG_AML_BOARD)
-		if (wifi_irq_trigger_level() == GPIO_IRQ_LOW) {
-			sdio_cfg.cfg.wl_wake_host_trigger_type = 0;
-			WCN_INFO("sdio_config wl_wake_host trigger:[low]\n");
-		} else {
-			sdio_cfg.cfg.wl_wake_host_trigger_type = 3;
-			WCN_INFO("sdio_config wl_wake_host trigger:[high]\n");
-		}
-#else
 		sdio_cfg.cfg.wl_wake_host_trigger_type = 3;
 		WCN_INFO("sdio_config wl_wake_host trigger:[high]\n");
-#endif
 	}
 
 	/*
@@ -2305,18 +2008,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	 * WL_WAKEUP_HOST level dyration time per 10ms,
 	 * example: 0:0ms; 3:30ms; 20:200ms
 	 */
-#if defined(CONFIG_HISI_BOARD)
-	/*
-	 * Hisi only support wakeup by:
-	 * high level - low level for 200ms -high level
-	 */
-	sdio_cfg.cfg.wake_host_level_duration_10ms = 20;
-#elif defined(CONFIG_AML_BOARD)
-	/* wakeup level for 30ms */
-	sdio_cfg.cfg.wake_host_level_duration_10ms = 3;
-#else
 	sdio_cfg.cfg.wake_host_level_duration_10ms = 2;
-#endif
 	WCN_INFO("sdio_config wake_host_level_duration_time:[%dms]\n",
 		 (sdio_cfg.cfg.wake_host_level_duration_10ms * 10));
 
@@ -2327,12 +2019,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	 * 1: if BT_WAKEUP_HOST en, ONLY bt packets can wake host;
 	 *    if WL_WAKEUP_HOST en, ONLY wifi packets can wake host
 	 */
-#if (defined(CONFIG_AML_BOARD) || defined(CONFIG_RK_BOARD))
-	sdio_cfg.cfg.wake_host_data_separation = 1;
-	WCN_DEBUG("sdio_config wake_host_data_separation:[yes]\n");
-#else
 	WCN_INFO("sdio_config wake_host_data_separation:[bt/wifi reuse]\n");
-#endif
 
 #else
 	/* Default config */
@@ -2524,7 +2211,7 @@ static int marlin_start_run(void)
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_AW_BIND_VERIFY) || IS_ENABLED(CONFIG_RK_WIFI_DEVICE_UWE5622)
+#if IS_ENABLED(CONFIG_AW_BIND_VERIFY)
 #include <crypto/sha2.h>
 
 static void expand_seed(u8 *seed, u8 *out)
@@ -2651,7 +2338,7 @@ static int check_cp_ready(void)
 				marlin_dev->sync_f.prj_type);
 		if (marlin_dev->sync_f.init_status == SYNC_ALL_FINISHED)
 			i = 0;
-#if IS_ENABLED(CONFIG_AW_BIND_VERIFY) || IS_ENABLED(CONFIG_RK_WIFI_DEVICE_UWE5622)
+#if IS_ENABLED(CONFIG_AW_BIND_VERIFY)
 		else if (marlin_dev->sync_f.init_status ==
 			SYNC_VERIFY_WAITING) {
 			ret = marlin_bind_verify();
@@ -2721,30 +2408,6 @@ static int marlin_reset_by_128_bit(void)
 #endif
 #endif
 
-#ifdef CONFIG_HISI_BOARD
-static unsigned int hi_gpio_set_value(unsigned int gpio, unsigned int value)
-{
-	int status;
-
-	WCN_INFO("%s entry\n", __func__);
-
-	status = HI_DRV_GPIO_SetDirBit(gpio, HI_DIR_OUT);
-	if (status != HI_SUCCESS) {
-		WCN_ERR("gpio(%d) HI_DRV_GPIO_SetDirBit HI_DIR_OUT failed\n",
-			gpio);
-		return status;
-	}
-	mdelay(RESET_DELAY);
-	status = HI_DRV_GPIO_WriteBit(gpio, value);
-	if (status != HI_SUCCESS) {
-		WCN_ERR("gpio(%d) HI_DRV_GPIO_WriteBit value(%d) failed\n",
-			gpio, value);
-		return status;
-	}
-
-	return HI_SUCCESS;
-}
-#endif
 
 static int marlin_reset(int val)
 {
@@ -2759,12 +2422,6 @@ static int marlin_reset(int val)
 		marlin_reset_by_128_bit();
 #endif
 
-#ifdef CONFIG_HISI_BOARD
-	/* As for Hisi platform, repull reset pin to reset wcn chip. */
-	hi_gpio_set_value(RTL_REG_RST_GPIO, 0);
-	mdelay(RESET_DELAY);
-	hi_gpio_set_value(RTL_REG_RST_GPIO, 1);
-#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (!IS_ERR_OR_NULL(marlin_dev->reset)) {
@@ -2789,23 +2446,6 @@ static int chip_reset_release(int val)
 {
 	static unsigned int reset_count;
 
-#if (defined(CONFIG_AML_BOARD) && defined(CONFIG_WCN_RESET_PIN_CONNECTED))
-	/* As for amlogic platform,
-	 * 1. chipen pin connected with WL_EN pin, reset pin connected with
-	 * BT_EN pin. But amlogic iptv source code won't pull BT_EN(reset) pin.
-	 * Unisoc module will change reset pin NC defaultly. This means reset
-	 * pin will be disconnected with BT_EN pin.
-	 * 2. BT wake host will judge both BT_EN pin and BT_WAKE_HOST pin.
-	 */
-	if (val) {
-		if (reset_count == 0)
-			extern_bt_set_enable(1);
-		reset_count++;
-	} else {
-		extern_bt_set_enable(0);
-		reset_count--;
-	}
-#else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (IS_ERR_OR_NULL(marlin_dev->reset))
 		return 0;
@@ -2835,7 +2475,6 @@ static int chip_reset_release(int val)
 		reset_count--;
 	}
 #endif
-#endif
 
 	return 0;
 }
@@ -2843,24 +2482,6 @@ void marlin_chip_en(bool enable, bool reset)
 {
 	static unsigned int chip_en_count;
 
-#ifdef CONFIG_AML_BOARD
-	if (enable) {
-		if (chip_en_count == 0) {
-			extern_wifi_set_enable(0);
-			msleep(100);
-			extern_wifi_set_enable(1);
-			WCN_INFO("marlin chip en pull up\n");
-		}
-		chip_en_count++;
-	} else {
-		chip_en_count--;
-		if (chip_en_count == 0) {
-			extern_wifi_set_enable(0);
-			WCN_INFO("marlin chip en pull down\n");
-		}
-	}
-	return;
-#endif
 
 #ifdef CONFIG_AW_BOARD
 	if (enable) {
@@ -3154,90 +2775,9 @@ static void pre_gnss_download_firmware(struct work_struct *work)
 
 }
 
-#ifdef CONFIG_WCN_USB
-static unsigned char fdl_hex_buf[] = {
-#include "../fw/usb_fdl.bin.hex"
-};
-
-#define FDL_HEX_SIZE sizeof(fdl_hex_buf)
-
-static int wcn_usb_fdl_download(void)
-{
-	int ret;
-	struct marlin_firmware *firmware;
-
-	firmware = kmalloc(sizeof(struct marlin_firmware), GFP_KERNEL);
-	if (!firmware)
-		return -ENOMEM;
-
-	WCN_INFO("marlin %s from wcnmodem.bin.hex start!\n", __func__);
-	firmware->data = fdl_hex_buf;
-	firmware->size = FDL_HEX_SIZE;
-	firmware->is_from_fs = 0;
-	firmware->priv = fdl_hex_buf;
-
-	ret = marlin_firmware_parse_image(firmware);
-	if (ret) {
-		WCN_ERR("%s firmware parse AA\\AB error\n", __func__);
-		goto OUT;
-	}
-
-	ret = marlin_firmware_write(firmware);
-	if (ret) {
-		WCN_ERR("%s firmware write error\n", __func__);
-		goto OUT;
-	}
-OUT:
-	marlin_release_firmware(firmware);
-
-	return ret;
-}
-
-static void btwifi_download_fdl_firmware(void)
-{
-	int ret;
-
-	marlin_firmware_download_start_usb();
-	wcn_get_chip_name();
-
-	if (wcn_usb_fdl_download()) {
-		WCN_INFO("fdl download err\n");
-		return;
-	}
-	msleep(100);
-
-	init_completion(&marlin_dev->carddetect_done);
-	marlin_reset(true);
-	mdelay(1);
-
-	ret = wait_for_completion_timeout(&marlin_dev->carddetect_done,
-		msecs_to_jiffies(CARD_DETECT_WAIT_MS));
-	if (ret == 0) {
-		WCN_ERR("first wait scan error!\n");
-		return;
-	}
-}
-#endif
 
 static void pre_btwifi_download_sdio(struct work_struct *work)
 {
-#ifdef CONFIG_WCN_USB
-	/*
-	 * Fix Bug 1349945.
-	 * Because the usb vbus can't be controlled on some platforms,
-	 * So, BT WIFI can't work after ap sys reboot, the reason is cp state is
-	 * not rebooted. So, wen need pull reset pin to reset cp.
-	 * But on cp init, set the reset_hold reg to keep iram for dump mem,
-	 * it's lead to the chip can't reset cache and power state. So that,
-	 * the chip can't work normal.
-	 * To solve this problem, we need a fdl to clear the reset_hold reg
-	 * before re-reset. After clear the reset_hold reg, then reset chip
-	 * again and normal boot system.
-	 */
-	btwifi_download_fdl_firmware();
-
-	marlin_firmware_download_start_usb();
-#endif
 	wcn_get_chip_name();
 
 	if (btwifi_download_firmware() == 0 &&
@@ -3272,18 +2812,6 @@ static void pre_btwifi_download_sdio(struct work_struct *work)
 /* for example: wifipa bound XTLEN3 */
 static int pmic_bound_xtl_assert(unsigned int enable)
 {
-#if defined(CONFIG_WCN_PMIC) && !defined(CONFIG_WCN_PCIE)
-	unsigned int val;
-
-	regmap_read(reg_map, ANA_REG_GLB_LDO_XTL_EN10, &val);
-	WCN_INFO("%s:%d, XTL_EN10 =0x%x\n", __func__, enable, val);
-	regmap_update_bits(reg_map,
-			   ANA_REG_GLB_LDO_XTL_EN10,
-			   BIT_LDO_WIFIPA_EXT_XTL3_EN,
-			   enable);
-	regmap_read(reg_map, ANA_REG_GLB_LDO_XTL_EN10, &val);
-	WCN_INFO("after XTL_EN10 =0x%x\n", val);
-#endif
 	return 0;
 }
 
@@ -3345,31 +2873,6 @@ static void set_wifipa_status(int subsys, int val)
 	}
 }
 
-#if defined(CONFIG_WCN_SDIO) && defined(CONFIG_RK_BOARD)
-#define CHIP_START_RETRIES 3
-/*
- * Some boots the SDIO link comes up but the chip does not answer register
- * reads (chip ID read times out with -110), and firmware loading then fails.
- * A power cycle of the chip fixes it, so try that a few times here.
- */
-static void chip_check_alive(void)
-{
-	int i;
-
-	for (i = 1; i <= CHIP_START_RETRIES; i++) {
-		if (marlin_get_wcn_chipid())
-			return;
-		WCN_ERR("chip does not answer, resetting it (try %d of %d)\n",
-			i, CHIP_START_RETRIES);
-		if (sprdwcn_bus_hw_reset() < 0)
-			break;
-	}
-	if (marlin_get_wcn_chipid())
-		WCN_INFO("chip answers after reset\n");
-	else
-		WCN_ERR("chip still does not answer, giving up\n");
-}
-#endif
 
 /*
  * RST_N (LOW)
@@ -3382,10 +2885,8 @@ int chip_power_on(int subsys)
 {
 	WCN_DEBUG("%s\n", __func__);
 
-#ifndef CONFIG_WCN_PCIE
 	/* may be we can call reinit_completion api */
 	init_completion(&marlin_dev->carddetect_done);
-#endif
 	marlin_avdd18_dcxo_enable(true);
 	marlin_clk_enable(true);
 	marlin_digital_power_enable(true);
@@ -3397,16 +2898,12 @@ int chip_power_on(int subsys)
 	sprdwcn_bus_driver_register();
 
 
-#ifndef CONFIG_WCN_PCIE
 	sprdwcn_bus_rescan();
 	if (wait_for_completion_timeout(&marlin_dev->carddetect_done,
 		msecs_to_jiffies(CARD_DETECT_WAIT_MS)) == 0) {
 		WCN_ERR("wait SDIO rescan card time out\n");
 		return -1;
 	}
-#if defined(CONFIG_WCN_SDIO) && defined(CONFIG_RK_BOARD)
-	chip_check_alive();
-#endif
 	loopcheck_first_boot_set();
 #ifdef CONFIG_MEM_PD
 	mem_pd_poweroff_deinit();
@@ -3414,7 +2911,6 @@ int chip_power_on(int subsys)
 #ifdef CONFIG_WCN_SDIO
 	if (marlin_int_ap_present())
 		sdio_pub_int_poweron(true);
-#endif
 #endif
 
 	return 0;
@@ -3433,12 +2929,10 @@ static int chip_power_off(int subsys)
 	chip_reset_release(0);
 	marlin_dev->wifi_need_download_ini_flag = 0;
 	marlin_dev->power_state = 0;
-#ifndef CONFIG_WCN_PCIE
 #ifdef CONFIG_MEM_PD
 	mem_pd_poweroff_deinit();
 #endif
 	sprdwcn_bus_remove_card();
-#endif
 	loopcheck_first_boot_clear();
 #ifdef CONFIG_WCN_SDIO
 	if (marlin_int_ap_present())
@@ -3454,9 +2948,7 @@ static int __maybe_unused gnss_powerdomain_open(void)
 	int ret = 0, retry_cnt = 0;
 	unsigned int temp;
 
-#ifndef CONFIG_WCN_GNSS
 	return 0;
-#endif
 
 	WCN_INFO("%s\n", __func__);
 
@@ -3511,9 +3003,7 @@ static int gnss_powerdomain_close(void)
 	int ret = 0;
 	unsigned int temp;
 
-#ifndef CONFIG_WCN_GNSS
 	return 0;
-#endif
 
 	WCN_INFO("%s\n", __func__);
 
@@ -3598,18 +3088,6 @@ static int marlin_set_power(int subsys, int val)
 			}
 			set_wifipa_status(subsys, val);
 			set_bit(subsys, &marlin_dev->power_state);
-#ifdef CONFIG_WCN_GNSS
-			WCN_INFO("GNSS start to auto download\n");
-			schedule_work(&marlin_dev->gnss_dl_wq);
-			timeleft
-				= wait_for_completion_timeout(
-				&marlin_dev->gnss_download_done, 10*HZ);
-			if (!timeleft) {
-				WCN_ERR("GNSS download timeout\n");
-				goto out;
-			}
-			WCN_INFO("gnss auto download finished and run ok\n");
-#endif
 			WCN_INFO("then marlin start to download\n");
 			schedule_work(&marlin_dev->download_wq);
 			timeleft = wait_for_completion_timeout(
@@ -3625,12 +3103,6 @@ static int marlin_set_power(int subsys, int val)
 			WCN_DEBUG("mutex_unlock\n");
 			mutex_unlock(&marlin_dev->power_lock);
 			power_state_notify_or_not(subsys, val);
-#ifdef CONFIG_WCN_GNSS
-			if (subsys == WCN_AUTO) {
-				marlin_set_power(WCN_AUTO, false);
-				return 0;
-			}
-#endif
 			if (subsys == MARLIN_GNSS) {
 				marlin_set_power(MARLIN_GNSS, false);
 				marlin_set_power(MARLIN_GNSS, true);
@@ -3673,17 +3145,6 @@ static int marlin_set_power(int subsys, int val)
 				WCN_INFO("BTWF ready, GPS start to download\n");
 				set_wifipa_status(subsys, val);
 				set_bit(subsys, &marlin_dev->power_state);
-#ifdef CONFIG_WCN_GNSS
-				gnss_powerdomain_open();
-
-				schedule_work(&marlin_dev->gnss_dl_wq);
-				timeleft = wait_for_completion_timeout(
-					&marlin_dev->gnss_download_done, 10*HZ);
-				if (!timeleft) {
-					WCN_ERR("GNSS download timeout\n");
-					goto out;
-				}
-#endif
 				WCN_INFO("GNSS download finished and ok\n");
 
 			} else {
@@ -3718,17 +3179,6 @@ static int marlin_set_power(int subsys, int val)
 				marlin_dev->download_finish_flag = 1;
 
 				WCN_INFO("marlin dl finished and run ok\n");
-#ifdef CONFIG_WCN_GNSS
-				WCN_INFO("GNSS start to download\n");
-				schedule_work(&marlin_dev->gnss_dl_wq);
-				timeleft = wait_for_completion_timeout(
-					&marlin_dev->gnss_download_done, 10*HZ);
-				if (!timeleft) {
-					WCN_ERR("then GNSS download timeout\n");
-					goto out;
-				}
-				WCN_INFO("then gnss dl finished and ok\n");
-#endif
 
 			}
 			/* 5.2 only download marlin, and then
@@ -3747,9 +3197,6 @@ static int marlin_set_power(int subsys, int val)
 				}
 				marlin_dev->download_finish_flag = 1;
 				WCN_INFO("BTWF download finished and run ok\n");
-#ifdef CONFIG_WCN_GNSS
-				gnss_powerdomain_close();
-#endif
 			}
 		}
 		/* power on together's Action */
@@ -3987,19 +3434,6 @@ EXPORT_SYMBOL_GPL(marlin_reset_reg);
 
 int start_marlin(u32 subsys)
 {
-#ifdef CONFIG_WCN_PCIE
-	WCN_INFO("%s [%s],power_status=%ld\n", __func__, strno(subsys),
-		 marlin_dev->power_state);
-	if (marlin_dev->download_finish_flag == 1) {
-		WCN_INFO("firmware have download\n");
-		return 0;
-	}
-	set_bit(subsys, &marlin_dev->power_state);
-	pcie_boot(subsys);
-	marlin_dev->download_finish_flag = 1;
-
-	return 0;
-#else
 	WCN_INFO("%s [%s]\n", __func__, strno(subsys));
 	if (sprdwcn_bus_get_carddump_status() != 0) {
 		WCN_ERR("%s SDIO card dump\n", __func__);
@@ -4027,13 +3461,11 @@ int start_marlin(u32 subsys)
 #else
 	return 0;
 #endif
-#endif
 }
 EXPORT_SYMBOL_GPL(start_marlin);
 
 int stop_marlin(u32 subsys)
 {
-#ifndef CONFIG_WCN_PCIE
 	if (sprdwcn_bus_get_carddump_status() != 0) {
 		WCN_ERR("%s SDIO card dump\n", __func__);
 		return -1;
@@ -4049,10 +3481,6 @@ int stop_marlin(u32 subsys)
 #endif
 
 	return marlin_set_power(subsys, false);
-#else
-	clear_bit(subsys, &marlin_dev->power_state);
-	return 0;
-#endif
 }
 EXPORT_SYMBOL_GPL(stop_marlin);
 
@@ -4067,10 +3495,6 @@ static void marlin_power_wq(struct work_struct *work)
 static void marlin_reset_notify_init(void);
 static int marlin_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_WCN_PMIC
-	struct device_node *regmap_np;
-	struct platform_device *pdev_regmap = NULL;
-#endif
 
 	marlin_dev = devm_kzalloc(&pdev->dev,
 			sizeof(struct marlin_device), GFP_KERNEL);
@@ -4106,7 +3530,6 @@ static int marlin_probe(struct platform_device *pdev)
 	sprdwcn_bus_register_rescan_cb(marlin_scan_finish);
 	/* sdiom_init or pcie_init */
 	sprdwcn_bus_preinit();
-#ifndef CONFIG_WCN_PCIE
 #ifdef CONFIG_WCN_SDIO
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (marlin_dev->int_ap)
@@ -4123,7 +3546,6 @@ static int marlin_probe(struct platform_device *pdev)
 	log_dev_init();
 	mdbg_atcmd_owner_init();
 	wcn_op_init();
-#endif
 #ifndef CONFIG_WCND
 	loopcheck_init();
 #endif
@@ -4132,9 +3554,6 @@ static int marlin_probe(struct platform_device *pdev)
 	/*notify subsys do reset, when cp2 was dead*/
 	marlin_reset_notify_init();
 
-#ifdef CONFIG_WCN_PCIE
-	chip_power_on(WCN_AUTO);
-#endif
 
 	INIT_WORK(&marlin_dev->download_wq, pre_btwifi_download_sdio);
 	INIT_WORK(&marlin_dev->gnss_dl_wq, pre_gnss_download_firmware);
@@ -4144,27 +3563,6 @@ static int marlin_probe(struct platform_device *pdev)
 			      msecs_to_jiffies(POWER_WQ_DELAYED_MS));
 #endif
 
-#ifdef CONFIG_WCN_PMIC
-	regmap_np = of_find_compatible_node(NULL, NULL, "sprd,pmic-glb");
-	if (!regmap_np) {
-		WCN_ERR("get pmic glb node fail\n");
-		return -ENODEV;
-	}
-
-	pdev_regmap = of_find_device_by_node(regmap_np);
-	if (!pdev_regmap) {
-		of_node_put(regmap_np);
-		WCN_ERR("get pmic device node fail\n");
-		return -ENODEV;
-	}
-
-	reg_map = dev_get_regmap(pdev_regmap->dev.parent, NULL);
-	if (!reg_map) {
-		WCN_ERR("get regmap error\n");
-		of_node_put(regmap_np);
-		return PTR_ERR(reg_map);
-	}
-#endif
 
 	WCN_INFO("marlin_probe ok!\n");
 
@@ -4237,12 +3635,6 @@ static void marlin_shutdown(struct platform_device *pdev)
 		marlin_chip_en(false, false);
 	}
 
-#if (defined(CONFIG_HISI_BOARD) && defined(CONFIG_WCN_USB))
-	/* As for Hisi platform, repull reset pin to reset wcn chip. */
-	hi_gpio_set_value(RTL_REG_RST_GPIO, 0);
-	mdelay(RESET_DELAY);
-	hi_gpio_set_value(RTL_REG_RST_GPIO, 1);
-#endif
 	WCN_INFO("marlin_shutdown end\n");
 }
 

@@ -81,24 +81,6 @@ enum smp_diag_subtype_t {
 
 #define WCNBUS_TX 1
 #define WCNBUS_RX 0
-#ifdef CONFIG_WCN_SIPC
-enum wcnbus_channel_t {
-	WCN_AT_TX = 0,
-	WCN_LOOPCHECK_RX = 2,
-	WCN_AT_RX = 1,
-	WCN_ASSERT_RX = 3,
-	WCN_RING_RX = 4,
-	WCN_RSV_RX,
-};
-#elif defined(CONFIG_WCN_USB)
-enum wcnbus_channel_t {
-	WCN_AT_TX = 7,
-	WCN_LOOPCHECK_RX = 29,
-	WCN_AT_RX,
-	WCN_ASSERT_RX,
-	WCN_RING_RX = 24,
-};
-#else
 enum wcnbus_channel_t {
 	WCN_AT_TX = 0,
 	WCN_LOOPCHECK_RX = 12,
@@ -109,7 +91,6 @@ enum wcnbus_channel_t {
 	WCN_ADSP_RING_RX = 19,
 	WCN_RSV_RX,
 };
-#endif
 
 enum mdbg_channel_ops_t {
 	MDBG_AT_TX_OPS = 0,

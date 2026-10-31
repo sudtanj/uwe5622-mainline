@@ -21,9 +21,6 @@
 #include "wcn_misc.h"
 #include "wcn_glb_reg.h"
 #include "wcn_dump.h"
-#ifdef CONFIG_WCN_USB
-#include "./usb_boot.h"
-#endif
 
 #if defined CONFIG_UWE5623 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_WCN_SWD
@@ -164,12 +161,8 @@ static int mdbg_dump_data(unsigned int start_addr,
 		trans_size = (len - count) > DUMP_PACKET_SIZE ?
 			DUMP_PACKET_SIZE : (len - count);
 		temp_buf = buf;
-#ifdef CONFIG_WCN_USB
-		err = marlin_dump_read_usb(start_addr + count, buf, trans_size);
-#else
 		err = sprdwcn_bus_direct_read(start_addr + count, buf,
 					      trans_size);
-#endif
 		if (err < 0) {
 			WCN_ERR("%s dump memory error:%d\n", __func__, err);
 			goto out;
@@ -401,9 +394,6 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5622[] = {
 	{1, 0x40242000, 0x400}  /* BT_BB_RX_BUF */
 };
 
-#ifdef CONFIG_WCN_USB
-#define RAM_SECTION_NUM 4
-#endif
 static __attribute__((unused))
 struct wcn_dump_mem_reg s_wcn_dump_regs_5623[] = {
 	/* IRAM + DRAM */
@@ -1329,16 +1319,7 @@ int mdbg_dump_mem(void)
 
 #ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5623
-	#ifdef CONFIG_WCN_USB
-	if (marlin_reset_reg() < 0) {
-		WCN_INFO("%s reset marlin fail!\n", __func__);
-		goto end;
-	}
-
-	wcn_dump_cp_data(s_wcn_dump_regs, 0, RAM_SECTION_NUM - 1);
-	#else
 	wcn_dump_cp_data(s_wcn_dump_regs, 0, wcn_dump_array_size - 1);
-	#endif
 
 	goto end;
 #endif

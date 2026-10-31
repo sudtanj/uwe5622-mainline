@@ -10,11 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#ifdef CONFIG_WCN_PCIE
-#include "pcie.h"
-#else
 #include "./../sdio/sdiohal.h"
-#endif
 #include "../include/wcn_glb_reg.h"
 
 /* DAP Transfer Request */

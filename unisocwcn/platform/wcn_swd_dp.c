@@ -15,74 +15,6 @@
 
 #include "wcn_swd_dp.h"
 
-#ifdef CONFIG_WCN_PCIE
-static void swd_ext_sel(bool enable)
-{
-	u32 *reg = (u32 *)(pcie_bar_vmem(4) + 0x1c);
-	u32 *ahb_ctl = (u32 *)(pcie_bar_vmem(0) + 0x001303e8);/* dis sec */
-
-	*ahb_ctl = 0x73e;
-	if (enable)
-		*reg |= (BIT(7) | BIT(6) | BIT(5));
-	else
-		*reg &= ~(BIT(7) | BIT(6) | BIT(5));
-}
-
-static void swclk_clr(void)
-{
-	u32 *reg = (u32 *)(pcie_bar_vmem(4) + 0x1c);
-
-	*reg &= ~BIT(6);
-}
-
-static void swclk_set(void)
-{
-	u32 *reg = (u32 *)(pcie_bar_vmem(4) + 0x1c);
-
-	*reg |= BIT(6);
-}
-
-static void sw_dio_out(u32 value)
-{
-	u32 *reg = (u32 *)(pcie_bar_vmem(4) + 0x1c);
-
-	if (value & BIT(0))
-		*reg |= BIT(5);
-	else
-		*reg &= ~BIT(5);
-}
-
-static u32 sw_dio_in(void)
-{
-	u32 *reg = (u32 *)(pcie_bar_vmem(4) + 0xc);
-	u32 bit;
-
-	bit = (*reg & BIT(7)) >> 7;
-
-	return bit;
-}
-#elif defined CONFIG_WCN_USB
-static void swd_ext_sel(bool enable)
-{
-}
-
-static void swclk_clr(void)
-{
-}
-
-static void swclk_set(void)
-{
-}
-
-static void sw_dio_out(u32 value)
-{
-}
-
-static u32 sw_dio_in(void)
-{
-	return 0;
-}
-#else
 static void swd_ext_sel(bool enable)
 {
 	unsigned char reg;
@@ -139,7 +71,6 @@ static u32 sw_dio_in(void)
 
 	return bit;
 }
-#endif
 
 static void swd_clk_cycle(void)
 {

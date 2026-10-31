@@ -18,51 +18,18 @@
 
 int mdbg_log_read(int channel, struct mbuf_t *head,
 		  struct mbuf_t *tail, int num);
-#ifdef CONFIG_WCN_PCIE
-int mdbg_log_push(int chn, struct mbuf_t **head,
-		  struct mbuf_t **tail, int *num);
-#endif
 
 static struct ring_device *ring_dev;
 static unsigned long long rx_count;
 static unsigned long long rx_count_last;
 
-#ifdef CONFIG_WCN_PCIE
-static struct mchn_ops_t mdbg_ringc_ops = {
-	.channel = WCN_RING_RX,
-	.inout = WCNBUS_RX,
-	.hif_type = 1,
-	.buf_size = 1056,
-	.pool_size = 6,
-	.cb_in_irq = 0,
-	.pop_link = mdbg_log_read,
-	.push_link = mdbg_log_push,
-};
-#elif defined CONFIG_WCN_USB
-static struct mchn_ops_t mdbg_ringc_ops = {
-	.channel = WCN_RING_RX,
-	.inout = WCNBUS_RX,
-	.pool_size = 10,
-	.pop_link = mdbg_log_read,
-	.hif_type = HW_TYPE_USB,
-};
-#else
 static struct mchn_ops_t mdbg_ringc_ops = {
 	.channel = WCN_RING_RX,
 	.inout = WCNBUS_RX,
 	.pool_size = 1,
 	.pop_link = mdbg_log_read,
 };
-#endif
 
-#ifdef CONFIG_WCN_PCIE
-int mdbg_log_push(int chn, struct mbuf_t **head, struct mbuf_t **tail, int *num)
-{
-	WCN_INFO("%s enter num=%d,mbuf used done", __func__, *num);
-
-	return 0;
-}
-#endif
 
 bool mdbg_rx_count_change(void)
 {
@@ -242,7 +209,6 @@ long int mdbg_receive(void *buf, long int len)
 int mdbg_tx_cb(int channel, struct mbuf_t *head,
 	       struct mbuf_t *tail, int num)
 {
-#ifndef CONFIG_WCN_PCIE
 	struct mbuf_t *mbuf_node;
 	int i;
 
@@ -251,7 +217,6 @@ int mdbg_tx_cb(int channel, struct mbuf_t *head,
 		kfree(mbuf_node->buf);
 		mbuf_node->buf = NULL;
 	}
-#endif
 	/* PCIe buf is witebuf[], not kmalloc, no need to free */
 	sprdwcn_bus_list_free(channel, head, tail, num);
 
@@ -277,9 +242,6 @@ int mdbg_tx_power_notify(int chn, int flag)
 static void mdbg_pt_ring_reg(void)
 {
 	sprdwcn_bus_chn_init(&mdbg_ringc_ops);
-#ifdef CONFIG_WCN_PCIE
-	prepare_free_buf(15, 1056, 6);
-#endif
 }
 
 static void mdbg_pt_ring_unreg(void)
