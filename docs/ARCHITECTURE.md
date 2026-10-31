@@ -18,8 +18,8 @@ handling happen in the firmware, and the host driver mostly translates between
 
 | Module | Directory | Lines (C/H) | Role |
 |---|---|---|---|
-| `uwe5622_bsp_sdio` | `unisocwcn/` | ~40 000 | "WCN core": powers the chip, uploads firmware, owns the SDIO transport, multiplexes channels for Wi-Fi, BT and GNSS, loop-check watchdog, debug dumps |
-| `sprdwl_ng` | `unisocwifi/` | ~35 000 | Wi-Fi: `cfg80211` ops, command/event protocol, TX/RX paths, reorder/defrag, SoftAP, NAN, RTT, vendor commands |
+| `uwe5622_bsp_sdio` | `unisocwcn/` | ~40 000 (19 600 after Phase 1) | "WCN core": powers the chip, uploads firmware, owns the SDIO transport, multiplexes channels for Wi-Fi and BT, loop-check watchdog, debug dumps |
+| `sprdwl_ng` | `unisocwifi/` | ~35 000 (34 000 after Phase 1) | Wi-Fi: `cfg80211` ops, command/event protocol, TX/RX paths, reorder/defrag, SoftAP, NAN, RTT, vendor commands |
 | `sprdbt_tty` | `tty-sdio/` | ~2 000 | Bluetooth: exposes an HCI byte stream from the chip as a TTY, which userspace (`hciattach`) attaches to BlueZ |
 
 Build selection is done with the same Kbuild variables Armbian and `dkms.conf`
@@ -115,21 +115,26 @@ All six objects are compiled: `tty.c rfkill.c lpm.c woble.c alignment/sitm.c
 dump.c`. Switches: `OTT_UWE WOBLE_FUN`; include path `../unisocwcn/include`.
 Not set: `DEBUG`, `KERNEL_VERSION_414`.
 
-### Code that is dead for this board
+### Code that was dead for this board (removed in Phase 1)
 
-A large share of the tree is for other customers of the vendor BSP and is
-compiled out or unreachable in the Allwinner SDIO build:
+A large share of the imported tree served other customers of the vendor BSP
+and was compiled out or unreachable in the Allwinner SDIO build. It was
+removed in Phase 1 (see below); the list is kept here as the record of what
+the import contained:
 
 - Hisilicon, Amlogic and Rockchip board glue (`CONFIG_HISI_BOARD`,
-  `CONFIG_AML_BOARD`, `CONFIG_RK_BOARD`)
+  `CONFIG_AML_BOARD`, `CONFIG_RK_BOARD`, `CONFIG_RK_WIFI_DEVICE_UWE5622`)
 - USB, PCIe and SIPC transports (`unisocwcn/usb`, `unisocwcn/pcie`,
   `unisocwcn/sipc`); only `unisocwcn/sdio` is used
-- GNSS (`unisocwcn/gnss`, `CONFIG_WCN_GNSS`), which no Zero 3 image exposes
-- Firmware-from-hex-array download, integrated (non-SDIO) chip variants
-  (`SC2342_INTEG`, `UMW2653`), PMIC control
-- Leftover references to vendor-kernel symbols (`sunxi_wlan_*`,
-  `rockchip_wifi_set_carddetect`, `get_custom_mac_address`): all either
-  commented out or behind `#ifdef`s that are not set here
+- GNSS (`unisocwcn/gnss`, `unisocwcn/platform/gnss`, `CONFIG_WCN_GNSS`), which
+  no Zero 3 image exposes
+- Firmware-from-hex-array download (`unisocwcn/fw`, 10 MB of hex), integrated
+  (non-SDIO) chip variants (`SC2342_INTEG`, `UMW2653`, `unisocwcn/boot`), the
+  UWE5621/UWE5623 register maps and the runtime chip-model dispatch
+  (`CONFIG_CHECK_DRIVER_BY_CHIPID`), PMIC control (`CONFIG_WCN_PMIC`)
+- References to vendor-kernel symbols (`sunxi_wlan_*`, `sunxi_mmc_rescan_card`,
+  `rockchip_wifi_set_carddetect`, `extern_wifi_set_enable`, `sdio_reinit`):
+  commented out or behind `#ifdef`s that were never set
 
 ### External interfaces the driver relies on
 
@@ -170,11 +175,67 @@ SDIO, so a driver on those interfaces has to be C.
 ### Phase 1 — carve out the Allwinner SDIO build
 
 Delete what the Allwinner SDIO configuration never compiles, then drop the
-`#ifdef` forest that remains. Expected outcome: roughly half the lines, same
-binary behaviour. Each step is verified by CI and, where it affects runtime, a
-hardware test (see `HARDWARE.md`).
+`#ifdef` forest that remains. Each step is verified by CI; nothing in this
+phase changes the code the compiler saw before, so the binary behaviour is
+the same and hardware testing (see `HARDWARE.md`) can be done once at the end.
 
-- Remove non-SDIO transports, GNSS, other-vendor board glue, hex firmware path
+Done (commits `e1a9c49`..`9fc1881`):
+
+- Build map written down (above), derived from the Makefiles.
+- Deleted the never-compiled sources: `unisocwcn/{usb,pcie,sipc,boot,fw,gnss,
+  log,vm}/`, `platform/gnss/`, `platform/{usb_boot,pcie_boot,rf/rf,wcn_debugfs,
+  wcn_dump_integrate}.*`, `sleep/slp_pcie.*`, `include/{mchn,wcn_types}.h`,
+  `include/vendor/hisilicon/`, `include/{uwe5623,uwe562x}_glb.h`;
+  `unisocwifi/{11h,edma_test,softap_hook}.c`, `edma_test.h`, `softap_hook.h`,
+  `cfg80211_compat.h`, `Android.mk`; all per-subdirectory Makefile/Kconfig
+  files of the vendor in-kernel layout.
+- `unisocwcn/Makefile` reduced to the Allwinner block with the identical
+  flag set and object list; Rockchip/Hisilicon/Amlogic blocks, hex-firmware
+  rules and Android install targets gone. `CONFIG_RK_WIFI_DEVICE_UWE5622`
+  removed from the top-level Makefile, Kconfig and dkms.conf.
+- Collapsed every `#if` on `CONFIG_HISI_BOARD`, `CONFIG_AML_BOARD`,
+  `CONFIG_RK_BOARD`, `CONFIG_WCN_USB`, `CONFIG_WCN_PCIE`, `CONFIG_WCN_SIPC`,
+  `CONFIG_WCN_GNSS`, `CONFIG_SC2342_INTEG`, `CONFIG_UMW2653`,
+  `CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX`, `CONFIG_WCN_PMIC`,
+  `CONFIG_CHECK_DRIVER_BY_CHIPID`, `CONFIG_UWE5621`, `CONFIG_UWE5623` and
+  `IS_ENABLED(CONFIG_RK_WIFI_DEVICE_UWE5622)`: dead branch removed, the
+  compiled branch kept verbatim.
+- Removed the commented-out / unused vendor-kernel symbol references listed
+  above.
+
+Result: `unisocwcn/` 39 895 → 19 571 lines (104 → 51 files), `unisocwifi/`
+34 737 → 33 963 (63 → 57), `tty-sdio/` unchanged at 2 139. 155 k lines
+deleted in total including the hex firmware.
+
+Deliberately kept, because removing it would need a judgement call or a
+hardware test rather than a proof from the build map:
+
+- `#ifdef`s on switches the Allwinner Makefile *could* enable but does not
+  (`CONFIG_WCN_PARSE_DTS`, `CONFIG_MEM_PD`, `CONFIG_WCN_RESUME_*`,
+  `CONFIG_SDIO_BLKSIZE_512`, `CONFIG_SDIO_INBAND_POLLING`, `CONFIG_SDIO_PWRSEQ`,
+  `CONFIG_CPLOG_DEBUG`, `CONFIG_WCN_CHECK_MODULE_VENDOR`) and on Android-side
+  switches (`CONFIG_WCND`, `CONFIG_WCN_FM`, `CONFIG_SDIOM`): all currently off,
+  all candidates for Phase 2 once the DT-less power sequence is settled.
+- `IS_ENABLED(CONFIG_AW_BIND_VERIFY)` (chip bind verification) and
+  `IS_ENABLED(CONFIG_SUNXI_ADDR_MGT)` with `get_custom_mac_address()` in
+  `unisocwifi/main.c`: Kconfig symbols that are false in the out-of-tree build
+  but belong to an Allwinner kernel feature, not to another vendor.
+- `CONFIG_ARCH_SUNXI` branches in `sdiohal_main.c` (real kernel symbol, true
+  on arm64 defconfig).
+- The GNSS *protocol* code that is not under `CONFIG_WCN_GNSS`: the
+  `MARLIN_GNSS` subsystem enum, `wcn_gnss.h` ops registration and the
+  `gnss_dl_wq` download path in `wcn_boot.c`. Removing it changes power-state
+  bookkeeping and needs a hardware test (Phase 2).
+- `unisocwifi` conditionals (`DFS_MASTER`, `CONFIG_P2P_INTF`, `RX_NAPI`,
+  `STA_SOFTAP_SCC_MODE`, ...) and `11h.h`, which compiled files include for
+  struct definitions.
+- `unisocwcn/tool/cp2log_config/`: documentation of a config file the
+  (compiled) CP2 log parser reads.
+- `platform/rf/rf.h`: `wcn_boot.c` uses `struct wifi_cali_t` and
+  `struct wifi_config_t` from it.
+
+Still to do in this phase:
+
 - Replace vendor logging macros with `dev_*`/`pr_*`
 - Fix everything `W=1` and `sparse` report; make `checkpatch --strict` clean on
   touched files
