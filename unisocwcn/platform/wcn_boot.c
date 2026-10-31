@@ -3562,9 +3562,9 @@ static void marlin_reset_notify_init(void)
 		 RAW_INIT_NOTIFIER_HEAD(&marlin_reset_notifiers[i]);
 }
 
-/**
+/*
  * @return: is notify callback function return value
-*/
+ */
 int marlin_reset_notify_call(enum marlin_cp2_status sts)
 {
 	int i = 0;
