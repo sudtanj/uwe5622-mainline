@@ -1,0 +1,124 @@
+# Build the driver against the kernels people actually run: the longterm
+# series, the latest stable release and mainline. kernel.org publishes the
+# current versions as JSON, so the matrix follows upstream by itself; the weekly
+# run is what tells us when a new kernel release breaks the build.
+name: Build against upstream kernels
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      extra_version:
+        description: "Additional kernel version to build (e.g. 7.4-rc1 or next-20261030)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: Pick kernel versions
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        env:
+          EXTRA: ${{ inputs.extra_version }}
+        run: |
+          set -euo pipefail
+          json=$(curl -fsSL https://www.kernel.org/releases.json)
+          # longterm 6.18 and 6.12, the newest stable, mainline, plus an optional manual extra
+          matrix=$(jq -c --arg extra "$EXTRA" '
+            [ (.releases[] | select(.moniker == "longterm" and (.version | startswith("6.18.")))),
+              (.releases[] | select(.moniker == "longterm" and (.version | startswith("6.12.")))),
+              ([.releases[] | select(.moniker == "stable")] | sort_by(.version | split(".") | map(tonumber? // 0)) | last),
+              (.releases[] | select(.moniker == "mainline"))
+            ]
+            | map({version: .version, url: .source})
+            | if ($extra | length) > 0 then . + [{version: $extra, url: ""}] else . end
+            | unique_by(.version)
+            | {include: .}' <<<"$json")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix" | jq .
+
+  build:
+    name: linux-${{ matrix.version }}
+    needs: versions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu flex bison libssl-dev libelf-dev bc sparse kmod
+
+      - name: Build modules and overlay
+        env:
+          KERNEL_URL: ${{ matrix.url }}
+        run: scripts/build-against-kernel.sh "${{ matrix.version }}" "$RUNNER_TEMP/kbuild"
+
+      # Informational for now: the imported vendor code has many warnings.
+      # Tracked in the log so the rewrite can drive the count to zero.
+      - name: Extra warnings and sparse
+        continue-on-error: true
+        run: |
+          make -C "$RUNNER_TEMP/kbuild/linux-${{ matrix.version }}" M="$PWD" \
+            CONFIG_AW_WIFI_DEVICE_UWE5622=y CONFIG_WLAN_UWE5622=m CONFIG_TTY_OVERY_SDIO=m clean >/dev/null
+          WARN=1 SPARSE=1 DTS=0 scripts/build-against-kernel.sh "${{ matrix.version }}" "$RUNNER_TEMP/kbuild" 2>&1 \
+            | tee "$RUNNER_TEMP/warnings.log" >/dev/null
+          echo "warnings: $(grep -c -E 'warning:' "$RUNNER_TEMP/warnings.log" || true)"
+          echo "sparse:   $(grep -c -E '(warning|error):.*(sparse|context|address space|incorrect type)' "$RUNNER_TEMP/warnings.log" || true)"
+
+      - name: Upload modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules-linux-${{ matrix.version }}
+          if-no-files-found: error
+          path: |
+            unisocwcn/*.ko
+            unisocwifi/*.ko
+            tty-sdio/*.ko
+            ${{ runner.temp }}/kbuild/*.dtbo
+            ${{ runner.temp }}/warnings.log
+
+  checkpatch:
+    # Kernel coding-style check on the diff only, so vendor baseline noise does
+    # not drown out what a change introduces. Informational until the rewrite
+    # has cleaned the tree.
+    name: checkpatch (diff)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch checkpatch
+        run: |
+          mkdir -p "$RUNNER_TEMP/cp"
+          base=https://raw.githubusercontent.com/torvalds/linux/master/scripts
+          curl -fsSL "$base/checkpatch.pl" -o "$RUNNER_TEMP/cp/checkpatch.pl"
+          curl -fsSL "$base/spelling.txt" -o "$RUNNER_TEMP/cp/spelling.txt"
+          curl -fsSL "$base/const_structs.checkpatch" -o "$RUNNER_TEMP/cp/const_structs.checkpatch"
+          chmod +x "$RUNNER_TEMP/cp/checkpatch.pl"
+      - name: Run on the diff
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            range="origin/${{ github.base_ref }}...HEAD"
+          else
+            range="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          git diff -U0 "$range" -- '*.c' '*.h' '*.dtso' \
+            | "$RUNNER_TEMP/cp/checkpatch.pl" --no-tree --no-signoff --strict --show-types - || true

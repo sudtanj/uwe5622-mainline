@@ -1,131 +1,87 @@
-# uwe5622 Linux Driver
+# uwe5622-mainline
 
-Linux kernel drivers for the Unisoc/Spreadtrum uwe5622 wireless connectivity chipset.
+Linux driver for the Unisoc **UWE5622** (AW859A) Wi-Fi/Bluetooth chip, kept
+building against **current upstream kernels**, with the goal of rewriting it
+into a small, readable, mainline-style C driver for the **Orange Pi Zero 3**.
 
-## Overview
-
-This repository provides out-of-tree kernel drivers for the uwe5622 wireless chipset, commonly found on ARM-based single-board computers from Allwinner and Rockchip platforms (e.g., Orange Pi Zero 2, Orange Pi 3 LTS, Orange Pi 4).
-
-The uwe5622 is a combo chipset that provides:
-- **WiFi** (802.11b/g/n, 2.4 GHz)
-- **Bluetooth** (BLE + Classic)
-- **GNSS** (GPS/GLONASS/BeiDou/Galileo)
-
-## Project Structure
-
-```
-uwe5622/
-├── unisocwcn/      # Wireless Connectivity Network core
-│   ├── boot/       # Firmware/boot loader
-│   ├── gnss/       # GNSS driver components
-│   ├── sdio/       # SDIO interface
-│   ├── usb/        # USB interface
-│   ├── pcie/       # PCIe interface
-│   └── ...
-├── unisocwifi/     # WiFi driver (cfg80211-based)
-├── tty-sdio/       # TTY over SDIO driver (for Bluetooth)
-└── reference/      # Historical patches and documentation
-```
-
-## Features
-
-- **WiFi driver**: Full cfg80211-based implementation supporting:
-  - Station and SoftAP modes
-  - IBSS (Ad-hoc) with WPA2 support
-  - WMM AC certification
-  - NAN (Neighbor Awareness Network)
-  - RTT (Round Trip Time)
-  - DFS (Dynamic Frequency Selection)
-
-- **Bluetooth**: TTY over SDIO for Bluetooth HCI communication
-
-- **GNSS**: Support for multiple satellite navigation systems
-
-- **Power Management**: Platform-specific power saving and sleep modes
+This is a personal project. It is not an attempt to submit the driver to the
+Linux kernel, but the code is held to the kernel's rules so that would remain
+possible.
 
 ## Status
 
-This is community-maintained software derived from vendor BSPs. It is actively developed to support newer kernel versions as they are released.
+| | |
+|---|---|
+| Code | Imported from [armbian/uwe5622](https://github.com/armbian/uwe5622) with full history. Vendor-derived; large and noisy. |
+| Builds against | longterm 6.18 / 6.12, latest stable, mainline: checked weekly by CI |
+| Tested on hardware | **Not yet** from this repository. Armbian's tree is in daily use on Zero 2/Zero 3 images. |
+| Rewrite | Phase 0 (baseline + CI). Plan in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 
-## Kernel Compatibility
+Chip capabilities: 2.4 GHz 802.11b/g/n, Bluetooth classic + BLE, GNSS (unused
+here). The chip is attached over SDIO on the Zero 3.
 
-The drivers are maintained to work with modern kernel versions. Patches for specific kernel versions are available in the `reference/` directory.
+## Layout
 
-Supported kernel versions include:
-- Linux 6.1
-- Linux 6.12
-- Linux 6.18
-- Linux 7.0
-- Linux 7.1
+```
+unisocwcn/   WCN core: power, firmware upload, SDIO transport      -> uwe5622_bsp_sdio.ko
+unisocwifi/  cfg80211 Wi-Fi driver                                 -> sprdwl_ng.ko
+tty-sdio/    Bluetooth HCI over SDIO exposed as a TTY              -> sprdbt_tty.ko
+dts/         device-tree overlay (and Armbian's patch) enabling mmc1 + power sequence
+scripts/     build-against-kernel.sh: fetch, prepare and build against any kernel release
+docs/        ARCHITECTURE.md (code map, rewrite plan), HARDWARE.md (wiring, firmware, testing)
+reference/   Armbian's historical per-kernel-version patches, kept for archaeology
+```
 
 ## Building
 
-### In an Armbian image
-
-The driver is built automatically and included in images created with the Armbian
-Build Framework.
-
-### Out of tree with DKMS
-
-A `dkms.conf` is provided, so the driver can be built against the kernel the
-system is actually running and reinstalled automatically on kernel updates:
+Against a specific upstream kernel, cross-compiled for arm64 (this is what CI
+runs; needs `gcc-aarch64-linux-gnu flex bison libssl-dev libelf-dev bc`):
 
 ```sh
-sudo apt install dkms
-sudo cp -r . /usr/src/uwe5622-1.0
-sudo dkms add -m uwe5622 -v 1.0
-sudo dkms install -m uwe5622 -v 1.0
+scripts/build-against-kernel.sh 6.18.60          # longterm
+scripts/build-against-kernel.sh 7.3.1            # stable
+WARN=1 SPARSE=1 scripts/build-against-kernel.sh 7.3   # extra warnings + sparse
 ```
 
-This builds and installs `uwe5622_bsp_sdio`, `sprdwl_ng` and `sprdbt_tty` under
-`/lib/modules/$(uname -r)/updates/dkms/`, and runs `depmod`.
+The kernel source is downloaded to `build/linux-<version>` once; later runs only
+rebuild the driver. Modules land next to their sources
+(`unisocwcn/uwe5622_bsp_sdio.ko`, `unisocwifi/sprdwl_ng.ko`,
+`tty-sdio/sprdbt_tty.ko`); the overlay is compiled to `build/*.dtbo`.
 
-Notes:
+Against the kernel a board is running, with its headers installed:
 
-* The default `dkms.conf` builds the **Allwinner** variant
-  (`CONFIG_AW_WIFI_DEVICE_UWE5622=y`). On Rockchip boards replace it with
-  `CONFIG_RK_WIFI_DEVICE_UWE5622=y` in `MAKE[0]`.
-* DKMS only provides the kernel modules. The **device tree** has to describe the
-  chip already (the SDIO bus and the `mmc-pwrseq` that powers/resets it, plus the
-  `uwe-bsp` node when the driver is built with `CONFIG_WCN_PARSE_DTS`), and the
-  **firmware** has to be in place — see below.
-* Verified with DKMS 3.2.2: builds against Linux 7.2 and installs correctly
-  (cross-built for arm64, so `strip` warns about the architecture; a native build
-  on the board does not).
+```sh
+make -C /lib/modules/$(uname -r)/build M=$PWD \
+     CONFIG_AW_WIFI_DEVICE_UWE5622=y CONFIG_WLAN_UWE5622=m CONFIG_TTY_OVERY_SDIO=m modules
+```
 
+`dkms.conf` is kept from upstream and does the same through DKMS.
 
-## Platform Support
+## Device tree and firmware
 
-Tested on:
-- **Orange Pi Zero 2** (Allwinner H616)
-- **Orange Pi 3 LTS** (Allwinner H6)
-- **Orange Pi 4** (Rockchip RK3399)
-- Similar boards with UWE5622 chipset
+Mainline's Zero 3 device tree leaves `mmc1` disabled. Apply
+`dts/sun50i-h618-orangepi-zero3-uwe5622.dtso` as an overlay (base DTB built
+with `-@`), or the patch in `dts/patches/` when building the kernel. Firmware
+files are not redistributable and are **not** in this repository; see
+[`docs/HARDWARE.md`](docs/HARDWARE.md) for what is needed and where Armbian
+ships it.
 
-## Firmware
+## CI
 
-The WCN core looks for `wcnmodem.bin` in `/lib/firmware/uwe5622/` first and in
-`/lib/firmware/` as a fallback: the first path comes from `UNISOC_FW_PATH_CONFIG`
-in the top-level Makefile, the second is the hardcoded entry in
-`unisocwcn/platform/wcn_boot.c`. Either location works, and the firmware shipped
-with the boards is normally in `/lib/firmware/`:
+`.github/workflows/build.yml` asks kernel.org which versions are current and
+builds the modules against each of them on every push, pull request and every
+Monday. The weekly run is the early warning for kernel API changes. The job
+also reports `W=1` warning and `sparse` counts (informational until the
+rewrite drives them down) and runs `checkpatch` on the diff of each change.
 
-- `wcnmodem.bin` - main firmware binary
-- `nvm.bin` - NV configuration
+## Syncing with Armbian
 
-The WiFi driver additionally reads its per-board configuration
-(`wifi_2355b001_1ant.ini` and similar) from the default firmware path, so
-`/lib/firmware/` is the location that covers both.
-
-## Contributing
-
-This is community-supported software. Contributions are certainly appreciated.
+```sh
+git remote add armbian https://github.com/armbian/uwe5622
+git fetch armbian && git merge armbian/master
+```
 
 ## License
 
-GPL-2.0
-
-## References
-
-- Original driver source: Spreadtrum Communications Inc.
-- Armbian integration: https://github.com/armbian/build
+GPL-2.0. Original driver by Spreadtrum/Unisoc; mainline-kernel adaptation by
+the Armbian community (see `git log`); see [`LICENSE`](LICENSE).

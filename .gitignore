@@ -1,0 +1,16 @@
+# kbuild output (modules are built in-tree with M=$PWD)
+*.o
+*.o.d
+*.ko
+*.mod
+*.mod.c
+*.a
+*.cmd
+.*.cmd
+.tmp_versions/
+Module.symvers
+modules.order
+*.dtbo
+*.dts.tmp
+# default work directory of scripts/build-against-kernel.sh
+/build/

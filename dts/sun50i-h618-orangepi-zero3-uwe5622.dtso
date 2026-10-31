@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Orange Pi Zero 3 (and Zero 2): power up the on-board Unisoc UWE5622
+ * Wi-Fi/Bluetooth module, which sits on mmc1 (SDIO).
+ *
+ * Mainline's sun50i-h618-orangepi-zero3.dts leaves mmc1 disabled because the
+ * chip has no in-tree driver. This overlay enables it with the two always-on
+ * regulators feeding the module and a simple power sequence that releases the
+ * chip's reset line (PG18) after power is applied. The driver itself binds to
+ * the SDIO function the controller then enumerates; no extra node is needed.
+ *
+ * Derived from Armbian's
+ * arm64-dts-sun50i-h616-orangepi-zero2-zero3-add-wifi.patch (Gunjan Gupta),
+ * kept verbatim in dts/patches/ for people who build the full DTB instead.
+ *
+ * Requires a base DTB compiled with symbols (dtc -@ / DTC_FLAGS=-@) so that
+ * &reg_vcc5v, &rtc, &pio and &mmc1 can be resolved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	reg_vcc33_wifi: vcc33-wifi {
+		/* Always on 3.3V regulator for WiFi and BT */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc33-wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		vin-supply = <&reg_vcc5v>;
+	};
+
+	reg_vcc_wifi_io: vcc-wifi-io {
+		/* Always on 1.8V/300mA regulator for WiFi and BT IO */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-wifi-io";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		vin-supply = <&reg_vcc33_wifi>;
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rtc 1>;
+		clock-names = "osc32k-out";
+		reset-gpios = <&pio 6 18 GPIO_ACTIVE_LOW>; /* PG18 */
+		post-power-on-delay-ms = <200>;
+	};
+};
+
+&mmc1 {
+	vmmc-supply = <&reg_vcc33_wifi>;
+	vqmmc-supply = <&reg_vcc_wifi_io>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	mmc-ddr-1_8v;
+	status = "okay";
+};
