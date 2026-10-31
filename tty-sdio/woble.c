@@ -166,7 +166,7 @@ int woble_data_recv(const unsigned char *buf, int count)
 {
 	unsigned short opcode = 0;
 	unsigned char status = 0;
-	const unsigned char *p = 0;
+	const unsigned char *p = NULL;
 	const unsigned char *rxmsg = buf;
 	int left_length = count;
 	int pack_length = 0;

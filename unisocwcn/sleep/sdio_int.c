@@ -144,7 +144,7 @@ static int sdio_isr_handle_init(void)
 	if (!pub_int_handle_task)
 		pub_int_handle_task = kthread_create(pub_int_handle_thread,
 			NULL, "pub_int_handle_thread");
-	if (pub_int_handle_task != 0) {
+	if (pub_int_handle_task) {
 		wake_up_process(pub_int_handle_task);
 		return 0;
 	}

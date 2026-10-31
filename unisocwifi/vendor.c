@@ -138,7 +138,7 @@ static int sprdwl_llstat(struct sprdwl_priv *priv, u8 vif_ctx_id, u8 subtype,
 	memcpy(buf_pos, buf, len);
 
 	if (subtype == SPRDWL_SUBCMD_SET)
-		return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, 0, 0);
+		return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
 	else
 		return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, r_buf,
 					    r_len);
@@ -196,7 +196,7 @@ static int sprdwl_vendor_set_llstat_handler(struct wiphy *wiphy,
 	if (ll_params->aggressive_statistics_gathering)
 		ret = sprdwl_llstat(priv, vif->ctx_id, SPRDWL_SUBCMD_SET,
 				    ll_params, sizeof(*ll_params),
-							0, 0);
+							NULL, NULL);
 	kfree(ll_params);
 	return ret;
 }
@@ -2930,7 +2930,7 @@ static int send_rssi_cmd(struct sprdwl_priv *priv, u8 vif_ctx_id,
 	if (!msg)
 		return -ENOMEM;
 	memcpy(msg->data, buf, len);
-	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, 0, 0);
+	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
 }
 
 #define MONITOR_MAX      SPRDWL_ATTR_RSSI_MONITORING_MAX
@@ -3527,7 +3527,7 @@ static int sprdwl_start_offload_packet(struct sprdwl_priv *priv,
 {
 	u8 src[ETH_ALEN], dest[ETH_ALEN];
 	u32 period, len;
-	u16 prot_type;
+	__be16 prot_type;
 	u8 *data, *pos;
 	int ret;
 
@@ -3541,8 +3541,7 @@ static int sprdwl_start_offload_packet(struct sprdwl_priv *priv,
 	}
 
 	period = nla_get_u32(tb[ATTR_OFFLOADED_PACKETS_PERIOD]);
-	prot_type = nla_get_u16(tb[ATTR_OFFLOADED_PACKETS_ETHER_PROTO_TYPE]);
-	prot_type = htons(prot_type);
+	prot_type = htons(nla_get_u16(tb[ATTR_OFFLOADED_PACKETS_ETHER_PROTO_TYPE]));
 	nla_memcpy(src, tb[ATTR_OFFLOADED_PACKETS_SRC_MAC_ADDR], ETH_ALEN);
 	nla_memcpy(dest, tb[ATTR_OFFLOADED_PACKETS_DST_MAC_ADDR], ETH_ALEN);
 	len = nla_len(tb[ATTR_OFFLOADED_PACKETS_IP_PACKET_DATA]);

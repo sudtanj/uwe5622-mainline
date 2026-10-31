@@ -111,7 +111,7 @@ struct wmm_ac_ts_t {
 struct ether_header {
 	unsigned char     ether_dhost[ETHER_ADDR_LEN];
 	unsigned char     ether_shost[ETHER_ADDR_LEN];
-	unsigned short     ether_type;
+	__be16     ether_type;
 
 } __packed;
 
@@ -121,7 +121,7 @@ struct ethervlan_header {
 	/* 0x8100 */
 	unsigned short vlan_type;
 	/* priority, cfi and vid */
-	unsigned short vlan_tag;
+	__be16 vlan_tag;
 	unsigned short ether_type;
 };
 /* 11u QoS map set */

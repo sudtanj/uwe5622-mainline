@@ -1726,8 +1726,9 @@ int sprdwl_add_tx_ts(struct sprdwl_priv *priv, u8 vif_ctx_id, u8 tsid,
 
 #ifdef WMMAC_WFA_CERTIFICATION
 	ac = map_priority_to_edca_ac(p->user_prio);
-	update_wmmac_ts_info(p->tsid, p->user_prio, ac, true, p->admitted_time);
-	update_admitted_time(priv, p->tsid, p->admitted_time, true);
+	update_wmmac_ts_info(p->tsid, p->user_prio, ac, true,
+			     le16_to_cpu(p->admitted_time));
+	update_admitted_time(priv, p->tsid, le16_to_cpu(p->admitted_time), true);
 #endif
 	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
 }
@@ -1750,7 +1751,7 @@ int sprdwl_del_tx_ts(struct sprdwl_priv *priv, u8 vif_ctx_id, u8 tsid,
 	ether_addr_copy(p->peer, peer);
 
 #ifdef WMMAC_WFA_CERTIFICATION
-	update_admitted_time(priv, p->tsid, p->admitted_time, false);
+	update_admitted_time(priv, p->tsid, le16_to_cpu(p->admitted_time), false);
 	remove_wmmac_ts_info(p->tsid);
 #endif
 	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
@@ -1854,7 +1855,7 @@ int sprdwl_register_frame(struct sprdwl_priv *priv, u8 vif_ctx_id,
 	if (!msg)
 		return -ENOMEM;
 	p = (struct sprdwl_cmd_register_frame *)msg->data;
-	p->type = type;
+	p->type = cpu_to_le16(type);
 	p->reg = reg;
 
 	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
@@ -2620,7 +2621,7 @@ static void sprdwl_event_station(struct sprdwl_vif *vif, u8 *data, u16 len)
 	    (struct sprdwl_event_new_station *)data;
 
 	sprdwl_report_softap(vif, sta->is_connect,
-			     sta->mac, sta->ie, sta->ie_len);
+			     sta->mac, sta->ie, le16_to_cpu(sta->ie_len));
 }
 
 void sprdwl_event_scan_done(struct sprdwl_vif *vif, u8 *data, u16 len)
@@ -3418,7 +3419,7 @@ unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg)
 		evt2str(hdr->cmd_id), plen);
 
 	wl_hex_dump(L_DBG, "EVENT: ", DUMP_PREFIX_OFFSET, 16, 1,
-			     (u8 *)hdr, hdr->plen, 0);
+			     (u8 *)hdr, le16_to_cpu(hdr->plen), 0);
 
 	len = plen - sizeof(*hdr);
 	vif = ctx_id_to_vif(priv, ctx_id);

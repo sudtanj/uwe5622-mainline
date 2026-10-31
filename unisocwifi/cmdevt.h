@@ -455,7 +455,7 @@ struct sprdwl_cmd_set_channel {
 struct sprdwl_cmd_scan {
 	__le32 channels;	/* One bit for one channel */
 	__le32 reserved;
-	u16 ssid_len;
+	__le16 ssid_len;
 	DECLARE_FLEX_ARRAY(u8, ssid);
 } __packed;
 
@@ -582,7 +582,7 @@ struct sprdwl_cmd_roam_offload_data {
 struct sprdwl_cmd_tdls_mgmt {
 	u8 da[ETH_ALEN];
 	u8 sa[ETH_ALEN];
-	__le16 ether_type;
+	__be16 ether_type;
 	u8 payloadtype;
 	u8 category;
 	u8 action_code;

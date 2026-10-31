@@ -424,7 +424,7 @@ static int wcn_fill_dump_head_info(struct wcn_dump_mem_reg *mem_cfg, int cnt)
 		mem = mem_cfg + i;
 		sec->off = cpu_to_le32(WCN_DUMP_ALIGN(len));
 		sec->start = cpu_to_le32(mem->addr);
-		sec->end = cpu_to_le32(sec->start + mem->len - 1);
+		sec->end = cpu_to_le32(mem->addr + mem->len - 1);
 		len += mem->len;
 		WCN_INFO("section[%d] [0x%x 0x%x 0x%x]\n",
 			 i, le32_to_cpu(sec->start),

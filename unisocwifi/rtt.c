@@ -536,11 +536,11 @@ sprdwl_ftm_cfg80211_start_session(struct sprdwl_priv *priv,
 	}
 	rtt = (struct sprdwl_cmd_rtt *)msg->data;
 	rtt->sub_cmd = RTT_GET_CAPABILITIES;
-	rtt->len = cmd_len;
+	rtt->len = cpu_to_le16(cmd_len);
 	memcpy(rtt->data, cmd, cmd_len);
 
 	ret = sprdwl_cmd_send_recv(priv, msg,
-				   CMD_WAIT_TIMEOUT, NULL, 0);
+				   CMD_WAIT_TIMEOUT, NULL, NULL);
 	if (ret) {
 		wl_ndev_log(L_ERR, vif->ndev, "%s: ret=%d\n", __func__, ret);
 	} else {
@@ -737,7 +737,7 @@ int sprdwl_ftm_get_capabilities(struct wiphy *wiphy,
 		return -ENOMEM;
 	cmd = (struct sprdwl_cmd_rtt *)msg->data;
 	cmd->sub_cmd = RTT_GET_CAPABILITIES;
-	cmd->len = len;
+	cmd->len = cpu_to_le16(len);
 	memcpy(cmd->data, data, len);
 
 	ret = sprdwl_cmd_send_recv(vif->priv, msg,
@@ -912,11 +912,11 @@ int sprdwl_ftm_abort_session(struct wiphy *wiphy,
 		return -ENOMEM;
 	cmd = (struct sprdwl_cmd_rtt *)msg->data;
 	cmd->sub_cmd = RTT_RANGE_CANCEL;
-	cmd->len = len;
+	cmd->len = cpu_to_le16(len);
 	memcpy(cmd->data, data, len);
 
 	ret = sprdwl_cmd_send_recv(priv, msg,
-				   CMD_WAIT_TIMEOUT, NULL, 0);
+				   CMD_WAIT_TIMEOUT, NULL, NULL);
 	if (ret)
 		wl_ndev_log(L_ERR, vif->ndev, "%s: ret=%d\n", __func__, ret);
 

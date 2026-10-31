@@ -216,8 +216,8 @@ static struct ieee80211_supported_band sprdwl_band_5ghz = {
 	.ht_cap.ht_supported = true,
 	.vht_cap.vht_supported = true,
 	.vht_cap.cap = sprdwl_vhtcap,
-	.vht_cap.vht_mcs.rx_mcs_map = 0xfff0,
-	.vht_cap.vht_mcs.tx_mcs_map = 0xfff0,
+	.vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(0xfff0),
+	.vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(0xfff0),
 	.vht_cap.vht_mcs.rx_highest = 0,
 	.vht_cap.vht_mcs.tx_highest = 0,
 };
@@ -1339,7 +1339,7 @@ static int sprdwl_cfg80211_get_station(struct wiphy *wiphy,
 	sinfo->signal = sta.signal;
 	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 
-	sinfo->tx_failed = sta.txfailed;
+	sinfo->tx_failed = le32_to_cpu(sta.txfailed);
 	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE) |
 		BIT(NL80211_STA_INFO_TX_FAILED);
 
@@ -2138,7 +2138,7 @@ static int sprdwl_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	wl_ndev_log(L_DBG, ndev, "wpa versions %#x\n", sme->crypto.wpa_versions);
-	con.wpa_versions = sme->crypto.wpa_versions;
+	con.wpa_versions = cpu_to_le32(sme->crypto.wpa_versions);
 	wl_ndev_log(L_DBG, ndev, "management frame protection %#x\n", sme->mfp);
 	con.mfp_enable = sme->mfp;
 

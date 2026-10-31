@@ -404,7 +404,7 @@ int sprdwl_pkt_log_save(struct sprdwl_intf *intf, void *data)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 #endif
-	pkt_len = ((struct sprdwl_pktlog_hdr *)(data))->plen;
+	pkt_len = le16_to_cpu(((struct sprdwl_pktlog_hdr *)(data))->plen);
 	data += sizeof(struct sprdwl_pktlog_hdr);
 	while (m < pkt_len) {
 		data_len = *((unsigned char *)(data + 2)) + 4;

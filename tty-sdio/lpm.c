@@ -95,13 +95,13 @@ int  bluesleep_init(void)
 	bluetooth_dir = proc_mkdir("bluetooth", NULL);
 	if (bluetooth_dir == NULL) {
 		pr_info("Unable to create /proc/bluetooth directory");
-		remove_proc_entry("bluetooth", 0);
+		remove_proc_entry("bluetooth", NULL);
 		return -ENOMEM;
 	}
 	sleep_dir = proc_mkdir("sleep", bluetooth_dir);
 	if (sleep_dir == NULL) {
 		pr_info("Unable to create /proc/%s directory", PROC_DIR);
-		remove_proc_entry("bluetooth", 0);
+		remove_proc_entry("bluetooth", NULL);
 		return -ENOMEM;
 	}
 
@@ -125,7 +125,7 @@ int  bluesleep_init(void)
 fail:
 	remove_proc_entry("btwrite", sleep_dir);
 	remove_proc_entry("sleep", bluetooth_dir);
-	remove_proc_entry("bluetooth", 0);
+	remove_proc_entry("bluetooth", NULL);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
 	wakeup_source_remove(tx_ws);
 	wakeup_source_remove(rx_ws);
@@ -140,7 +140,7 @@ void  bluesleep_exit(void)
 {
 	remove_proc_entry("btwrite", sleep_dir);
 	remove_proc_entry("sleep", bluetooth_dir);
-	remove_proc_entry("bluetooth", 0);
+	remove_proc_entry("bluetooth", NULL);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
 	wakeup_source_remove(tx_ws);
 	wakeup_source_remove(rx_ws);

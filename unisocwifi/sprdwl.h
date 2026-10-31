@@ -78,7 +78,7 @@ struct sprdwl_mc_filter {
 };
 
 struct android_wifi_priv_cmd {
-	char *buf;
+	char __user *buf;
 	int used_len;
 	int total_len;
 };

@@ -823,12 +823,12 @@ static ssize_t mdbg_proc_write(struct file *filp,
 	return count;
 }
 
-static unsigned int mdbg_proc_poll(struct file *filp, poll_table *wait)
+static __poll_t mdbg_proc_poll(struct file *filp, poll_table *wait)
 {
 	struct mdbg_proc_entry *entry =
 		(struct mdbg_proc_entry *)filp->private_data;
 	char *type = entry->name;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (strcmp(type, "assert") == 0) {
 		poll_wait(filp, &mdbg_proc->assert.rxwait, wait);

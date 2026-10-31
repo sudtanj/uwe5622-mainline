@@ -31,7 +31,7 @@ int slp_test_init(void)
 	if (!slp_test_task)
 		slp_test_task = kthread_create(sleep_test_thread,
 			NULL, "sleep_test_thread");
-	if (slp_test_task != 0) {
+	if (slp_test_task) {
 		wake_up_process(slp_test_task);
 		return 0;
 	}

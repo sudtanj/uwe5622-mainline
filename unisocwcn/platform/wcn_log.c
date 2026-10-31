@@ -133,7 +133,7 @@ static ssize_t wcnlog_read(struct file *filp,
 	}
 
 	mutex_lock(&mdbg_dev->mdbg_lock);
-	read_size = mdbg_receive((void *)buf, (long int)count);
+	read_size = mdbg_receive((void __force *)buf, (long int)count);
 	if (sprdwcn_bus_get_carddump_status() == 1) {
 		dum_send_size += read_size;
 		WCN_INFO("read_size = %ld dum_total_size= %d,remainder =%ld\n",
@@ -188,9 +188,9 @@ static ssize_t wcnlog_write(struct file *filp,
 	return sent_size;
 }
 
-static unsigned int wcnlog_poll(struct file *filp, poll_table *wait)
+static __poll_t wcnlog_poll(struct file *filp, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	MDBG_LOG("wcnlog_poll\n");
 	if ((!mdbg_dev) || (mdbg_dev->exit_flag)) {

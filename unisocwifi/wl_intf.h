@@ -116,7 +116,7 @@ struct tx_msdu_dscr {
 		/*used by PCIe address buffer, need set default:0*/
 		unsigned char pcie_mh_readcomp:1;
 	} tx_ctrl;
-	unsigned short pkt_len;
+	__le16 pkt_len;
 	struct {
 		unsigned char msdu_tid:4;
 		unsigned char mac_data_offset:4;

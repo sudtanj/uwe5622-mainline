@@ -32,10 +32,10 @@
 
 extern unsigned int tcp_ack_drop_cnt;
 struct sprdwl_tcp_ack_msg {
-	u16 source;
-	u16 dest;
-	s32 saddr;
-	s32 daddr;
+	__be16 source;
+	__be16 dest;
+	__be32 saddr;
+	__be32 daddr;
 	u32 seq;
 	u16 win;
 };
