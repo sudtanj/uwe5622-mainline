@@ -86,8 +86,13 @@ build_driver() {
 	[[ ${WARN:-0} == 1 ]] && extra+=(W=1)
 	[[ ${SPARSE:-0} == 1 ]] && extra+=(C=1)
 	log "Building driver modules against linux-$VER ${extra[*]:-}"
+	# The kernel tree is only "prepared", not built, so it has no Module.symvers
+	# and modpost cannot resolve symbols the modules import from the kernel.
+	# Turn that into warnings and verify the imports ourselves below.
 	make -C "$KDIR" M="$SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" \
-		"${DRIVER_CONFIG[@]}" "${extra[@]}" modules
+		KBUILD_MODPOST_WARN=1 "${DRIVER_CONFIG[@]}" "${extra[@]}" modules 2>&1 | tee "$WORK/build-$VER.log"
+	[[ ${PIPESTATUS[0]} -eq 0 ]]
+	check_imports
 	log "Modules"
 	ls -l "$SRC"/unisocwcn/*.ko "$SRC"/unisocwifi/*.ko "$SRC"/tty-sdio/*.ko
 	if command -v modinfo >/dev/null; then
@@ -95,6 +100,30 @@ build_driver() {
 			printf '%s: vermagic=%s\n' "$(basename "$ko")" "$(modinfo -F vermagic "$ko")"
 		done
 	fi
+}
+
+# Every symbol modpost could not resolve must be one the kernel exports
+# (EXPORT_SYMBOL*). Anything else is a real error: a symbol that does not
+# exist in this kernel version, or exists but is not available to modules.
+check_imports() {
+	local exports="$KDIR/.uwe5622-exports"
+	local undefined missing
+	undefined=$(sed -nE "s/.*WARNING: modpost: .*symbol '([A-Za-z0-9_]+)' undefined!.*/\1/p" "$WORK/build-$VER.log" | sort -u)
+	[[ -n $undefined ]] || return 0
+	if [[ ! -s $exports ]]; then
+		log "Indexing exported symbols of linux-$VER"
+		grep -rhoE 'EXPORT_SYMBOL[A-Z_]*\(\s*[A-Za-z0-9_]+' \
+			--include='*.c' --include='*.S' --include='*.h' \
+			"$KDIR"/{arch/$ARCH,block,crypto,drivers,fs,init,io_uring,ipc,kernel,lib,mm,net,security,sound,virt} 2>/dev/null \
+			| sed -E 's/.*\(\s*//' | sort -u > "$exports"
+	fi
+	missing=$(comm -23 <(echo "$undefined") "$exports")
+	if [[ -n $missing ]]; then
+		echo "ERROR: symbols not exported by linux-$VER:" >&2
+		echo "$missing" | sed 's/^/  /' >&2
+		return 1
+	fi
+	log "Imports from the kernel: $(echo "$undefined" | wc -l) symbols, all exported"
 }
 
 build_overlay() {
