@@ -589,7 +589,7 @@ static int at_list_rx_pop(int channel, struct mbuf_t *head,
 	return 0;
 	}
 
-struct mchn_ops_t at_tx_ops = {
+static struct mchn_ops_t at_tx_ops = {
 	.channel = AT_TX_CHANNEL,
 	.hif_type = HW_TYPE_SDIO,
 	.inout = SDIOHAL_DIR_TX,
@@ -597,7 +597,7 @@ struct mchn_ops_t at_tx_ops = {
 	.pop_link = at_list_tx_pop,
 };
 
-struct mchn_ops_t at_rx_ops = {
+static struct mchn_ops_t at_rx_ops = {
 	.channel = AT_RX_CHANNEL,
 	.hif_type = HW_TYPE_SDIO,
 	.inout = SDIOHAL_DIR_RX,
