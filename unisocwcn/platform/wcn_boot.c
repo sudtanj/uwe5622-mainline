@@ -380,7 +380,6 @@ unsigned int marlin_get_wcn_chipid(void)
 
 	WCN_DEBUG("%s enter.\n", __func__);
 
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 	ret = sprdwcn_bus_reg_read(CHIPID_REG, &chip_id, 4);
 	if (ret < 0) {
 		WCN_ERR("marlin read chip ID fail, ret=%d\n", ret);
@@ -388,26 +387,6 @@ unsigned int marlin_get_wcn_chipid(void)
 		return 0;
 	}
 
-#else
-	/* At first, read Marlin3E chipid register. */
-	ret = sprdwcn_bus_reg_read(CHIPID_REG_M3E, &chip_id, 4);
-	if (ret < 0) {
-		WCN_ERR("read marlin3E chip id fail, ret=%d\n", ret);
-		/* don't cache a partial read; the next call reads again */
-		chip_id = 0;
-		return 0;
-	}
-
-	/* If it is not Marlin3E, then read Marlin3 chipid register. */
-	if ((chip_id & WCN_CHIPID_MASK) != MARLIN3E_AA_CHIPID) {
-		ret = sprdwcn_bus_reg_read(CHIPID_REG_M3_M3L, &chip_id, 4);
-		if (ret < 0) {
-			WCN_ERR("read marlin3 chip id fail, ret=%d\n", ret);
-			chip_id = 0;
-			return 0;
-		}
-	}
-#endif
 	WCN_INFO("%s: chipid: 0x%lx\n", __func__, chip_id);
 
 	return chip_id;
@@ -756,7 +735,6 @@ static const struct imageinfo *marlin_judge_images(const unsigned char *buffer)
 	if (buffer == NULL)
 		return NULL;
 
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3) {
 		switch (chip_id) {
 		case MARLIN_AA_CHIPID:
@@ -812,62 +790,6 @@ static const struct imageinfo *marlin_judge_images(const unsigned char *buffer)
 		}
 	}
 
-#else  /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-
-	switch (chip_id) {
-	case MARLIN3_AA_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3_AA_TAG, buffer);
-	case MARLIN3_AB_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3_AB_TAG, buffer);
-	case MARLIN3_AC_CHIPID:
-	case MARLIN3_AD_CHIPID:
-		/* bin of m3 AC and AD chip is the same. */
-		image_info = marlin_imageinfo_get_from_data(
-			IMG_MARLIN3_AC_TAG, buffer);
-		if (image_info) {
-			WCN_INFO("%s find %s tag\n", __func__,
-				 IMG_MARLIN3_AC_TAG);
-			return image_info;
-		}
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3_AD_TAG, buffer);
-	case MARLIN3L_AA_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3L_AA_TAG, buffer);
-	case MARLIN3L_AB_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3L_AB_TAG, buffer);
-	case MARLIN3L_AC_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3L_AC_TAG, buffer);
-	case MARLIN3L_AD_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3L_AD_TAG, buffer);
-	case MARLIN3E_AA_CHIPID:
-	case MARLIN3E_AB_CHIPID:
-		/* bin of m3e AA and AB chip is the same. */
-		image_info = marlin_imageinfo_get_from_data(
-			IMG_MARLIN3E_AA_TAG, buffer);
-		if (image_info) {
-			WCN_INFO("%s find %s tag\n", __func__,
-				 IMG_MARLIN3E_AA_TAG);
-			return image_info;
-		}
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3E_AB_TAG, buffer);
-	case MARLIN3E_AC_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3E_AC_TAG, buffer);
-	case MARLIN3E_AD_CHIPID:
-		return marlin_imageinfo_get_from_data(
-			IMG_MARLIN3E_AD_TAG, buffer);
-	default:
-		WCN_INFO("%s Cannot find Chip Firmware\n", __func__);
-		break;
-	}
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 	return NULL;
 }
 
@@ -2385,42 +2307,9 @@ static int gnss_start_run(void)
 	return ret;
 }
 
-#if defined CONFIG_UWE5623 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
-#ifdef CONFIG_WCN_SDIO
-static int marlin_reset_by_128_bit(void)
-{
-	unsigned char reg;
-
-	WCN_INFO("%s entry\n", __func__);
-	if (sprdwcn_bus_aon_readb(REG_CP_RST_CHIP, &reg)) {
-		WCN_ERR("%s line:%d\n", __func__, __LINE__);
-		return -1;
-	}
-
-	reg |= 1;
-	if (sprdwcn_bus_aon_writeb(REG_CP_RST_CHIP, reg)) {
-		WCN_ERR("%s line:%d\n", __func__, __LINE__);
-		return -1;
-	}
-
-	return 0;
-}
-#endif
-#endif
-
 
 static int marlin_reset(int val)
 {
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
-#ifdef CONFIG_UWE5623
-	#ifdef CONFIG_WCN_SDIO
-	marlin_reset_by_128_bit();
-	#endif
-#endif
-#else /*CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3E)
-		marlin_reset_by_128_bit();
-#endif
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)

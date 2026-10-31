@@ -22,11 +22,6 @@
 #include "wcn_glb_reg.h"
 #include "wcn_dump.h"
 
-#if defined CONFIG_UWE5623 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
-#ifdef CONFIG_WCN_SWD
-#include "wcn_swd_dp.h"
-#endif
-#endif
 
 static int smp_calc_chsum(unsigned short *buf, unsigned int size)
 {
@@ -263,11 +258,7 @@ struct wcn_dump_mem_reg {
 static __attribute__((unused))
 struct wcn_dump_mem_reg s_wcn_dump_regs_5621[] = {
 	/* IRAM + DRAM */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x100000, FIRMWARE_MAX_SIZE_M3_M3E}, /*FIRMWARE_MAX_SIZE*/
-#else
 	{1, 0x100000, FIRMWARE_MAX_SIZE}, /*FIRMWARE_MAX_SIZE*/
-#endif
 	/* top */
 	{1, 0x40880000, 0x54}, /* AON_AHB */
 	{1, 0x4083C000, 0x354}, /* AON_APB */
@@ -278,19 +269,10 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5621[] = {
 	/* SDIO regs */
 	{1, 0x40140000, 0x10000}, /* SDIO regs */
 	/* WIFI regs */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x400f0000, WIFI_AON_MAC_SIZE_M3_M3E}, /* WIFI_AON_MAC */
-#else
 	{1, 0x400f0000, WIFI_AON_MAC_SIZE}, /* WIFI_AON_MAC */
-#endif
 	{1, 0x400f1000, 0xD100}, /* WIFI_RTN_PD_MAC */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x40300000, WIFI_RAM_SIZE_M3_M3E}, /* WIFI_352K/298K_RAM */
-	{1, 0x400a0000, WIFI_GLB_REG_SIZE_M3_M3E}, /* Wifi_glb_reg */
-#else
 	{1, 0x40300000, WIFI_RAM_SIZE}, /* WIFI_352K/298K_RAM */
 	{1, 0x400a0000, WIFI_GLB_REG_SIZE}, /* Wifi_glb_reg */
-#endif
 	{1, 0x400b0000, 0x388}, /* Wifi_phy_top_reg */
 	{1, 0x400b1000, 0x154}, /* Wifi_phy_tx11a_reg */
 	{1, 0x400b2000, 0xa8c}, /* Wifi_phy_rx11a_reg */
@@ -302,19 +284,11 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5621[] = {
 	{1, 0x40098000, 0xabc}, /* fm + rds */
 #endif
 	/* Bluetooth (HW DEC and BB) Buffer regs */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x40240000, BT_ACC_SIZE_M3_M3E}, /* BT_ACC */
-#else
 	{1, 0x40240000, BT_ACC_SIZE}, /* BT_ACC */
-#endif
 	{1, 0x40246000, 0x738}, /* BT_JAL */
 	{1, 0x40248000, 0xA0}, /* BT_HAB */
 	{1, 0x4024A000, 0x21C},  /* BT_LEJAL */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x4024F000, BT_MODEM_SIZE_M3_M3E}, /* BT_MODEM */
-#else
 	{1, 0x4024F000, BT_MODEM_SIZE}, /* BT_MODEM */
-#endif
 	{1, 0x40200000, 0x200}, /* BT_CMD_BUF */
 	{1, 0x40204000, 0x200}, /* BT_EVENT_BUF */
 	{1, 0x40208000, 0x12A4},  /* BT_LMP_TX_BUF */
@@ -330,11 +304,7 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5621[] = {
 static __attribute__((unused))
 struct wcn_dump_mem_reg s_wcn_dump_regs_5622[] = {
 	/* IRAM + DRAM */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x100000, FIRMWARE_MAX_SIZE_M3L}, /*FIRMWARE_MAX_SIZE*/
-#else
 	{1, 0x100000, FIRMWARE_MAX_SIZE}, /*FIRMWARE_MAX_SIZE*/
-#endif
 	/* top */
 	{1, 0x40880000, 0x54}, /* AON_AHB */
 	{1, 0x4083C000, 0x354}, /* AON_APB */
@@ -345,19 +315,10 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5622[] = {
 	/* SDIO regs */
 	{1, 0x40140000, 0x10000}, /* SDIO regs */
 	/* WIFI regs */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x400f0000, WIFI_AON_MAC_SIZE_M3L}, /* WIFI_AON_MAC */
-#else
 	{1, 0x400f0000, WIFI_AON_MAC_SIZE}, /* WIFI_AON_MAC */
-#endif
 	{1, 0x400f1000, 0xD100}, /* WIFI_RTN_PD_MAC */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x40300000, WIFI_RAM_SIZE_M3L}, /* WIFI_352K/298K_RAM */
-	{1, 0x400a0000, WIFI_GLB_REG_SIZE_M3L}, /* Wifi_glb_reg */
-#else
 	{1, 0x40300000, WIFI_RAM_SIZE}, /* WIFI_352K/298K_RAM */
 	{1, 0x400a0000, WIFI_GLB_REG_SIZE}, /* Wifi_glb_reg */
-#endif
 	{1, 0x400b0000, 0x388}, /* Wifi_phy_top_reg */
 	{1, 0x400b1000, 0x154}, /* Wifi_phy_tx11a_reg */
 	{1, 0x400b2000, 0xa8c}, /* Wifi_phy_rx11a_reg */
@@ -369,19 +330,11 @@ struct wcn_dump_mem_reg s_wcn_dump_regs_5622[] = {
 	{1, 0x40098000, 0xabc}, /* fm + rds */
 #endif
 	/* Bluetooth (HW DEC and BB) Buffer regs */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x40240000, BT_ACC_SIZE_M3L}, /* BT_ACC */
-#else
 	{1, 0x40240000, BT_ACC_SIZE}, /* BT_ACC */
-#endif
 	{1, 0x40246000, 0x738}, /* BT_JAL */
 	{1, 0x40248000, 0xA0}, /* BT_HAB */
 	{1, 0x4024A000, 0x21C},  /* BT_LEJAL */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	{1, 0x4024F000, BT_MODEM_SIZE_M3L}, /* BT_MODEM */
-#else
 	{1, 0x4024F000, BT_MODEM_SIZE}, /* BT_MODEM */
-#endif
 	{1, 0x40200000, 0x200}, /* BT_CMD_BUF */
 	{1, 0x40204000, 0x200}, /* BT_EVENT_BUF */
 	{1, 0x40208000, 0x12A4},  /* BT_LMP_TX_BUF */
@@ -524,8 +477,8 @@ static void wcn_dump_cp_register(struct wcn_dump_mem_reg *mem)
 	}
 }
 
-/* All callers are limited to CONFIG_UWE5623 or runtime chip detection, so
- * fixed-chip builds leave this unused; __maybe_unused keeps them warning-free.
+/* Only the Marlin3E (UWE5623) dump path used this; the UWE5622 build
+ * leaves it unused and __maybe_unused keeps it warning-free.
  */
 static void __maybe_unused wcn_dump_cp_data(struct wcn_dump_mem_reg *mem, int start, int end)
 {
@@ -601,7 +554,7 @@ static int cp_dcache_clean_invalid_all(void)
 }
 
 /* select aon_apb_dap DAP(Debug Access Port) */
-#if defined CONFIG_UWE5622 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
+#if defined CONFIG_UWE5622
 static void dap_sel_btwf_lite(void)
 {
 	int ret;
@@ -947,7 +900,6 @@ static void write_core_reg_value(unsigned int reg_index, unsigned int value)
 
 void sprdwcn_bus_armreg_write(unsigned int reg_index, unsigned int value)
 {
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 	dap_sel_btwf_lite();
 	apb_eb_lite();
@@ -956,16 +908,6 @@ void sprdwcn_bus_armreg_write(unsigned int reg_index, unsigned int value)
 	apb_rst();
 	apb_eb();
 #endif
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-		dap_sel_btwf_lite();
-		apb_eb_lite();
-	} else {
-		dap_sel_btwf();
-		apb_rst();
-		apb_eb();
-	}
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 	check_dap_is_ok();
 	hold_btwf_core();
@@ -974,15 +916,10 @@ void sprdwcn_bus_armreg_write(unsigned int reg_index, unsigned int value)
 
 	/* make sure btwf core can run */
 	release_btwf_core();
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifndef CONFIG_UWE5622
 	/* make sure JTAG can connect dap */
 	dap_sel_default();
 #endif
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() != WCN_CHIP_MARLIN3L)
-		dap_sel_default();
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 }
 
 /* Debug Core register Data Register */
@@ -1028,7 +965,6 @@ int dump_arm_reg(void)
 	}
 
 	memset(p, 0, 19*4);
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 	dap_sel_btwf_lite();
 	apb_eb_lite();
@@ -1037,16 +973,6 @@ int dump_arm_reg(void)
 	apb_rst();
 	apb_eb();
 #endif
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-		dap_sel_btwf_lite();
-		apb_eb_lite();
-	} else {
-		dap_sel_btwf();
-		apb_rst();
-		apb_eb();
-	}
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 	check_dap_is_ok();
 	hold_btwf_core();
@@ -1061,15 +987,10 @@ int dump_arm_reg(void)
 
 	WCN_INFO("------------[ ARM END ]------------\n");
 	kfree(p);
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifndef CONFIG_UWE5622
 	/* make sure JTAG can connect dap */
 	dap_sel_default();
 #endif
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() != WCN_CHIP_MARLIN3L)
-		dap_sel_default();
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 	return 0;
 }
 
@@ -1259,21 +1180,8 @@ int mdbg_dump_mem(void)
 	mdbg_dump_mem_cnt++;
 
 	/* init dump array pointer */
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3)
-#endif
-#if defined CONFIG_UWE5621 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
-	{
-		wcn_dump_array_size = ARRAY_SIZE(s_wcn_dump_regs_5621);
-		memcpy(s_wcn_dump_regs, s_wcn_dump_regs_5621,
-		       sizeof(s_wcn_dump_regs_5621));
-	}
-#endif
 
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L)
-#endif
-#if defined CONFIG_UWE5622 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
+#if defined CONFIG_UWE5622
 	{
 		wcn_dump_array_size = ARRAY_SIZE(s_wcn_dump_regs_5622);
 		memcpy(s_wcn_dump_regs, s_wcn_dump_regs_5622,
@@ -1281,33 +1189,10 @@ int mdbg_dump_mem(void)
 	}
 #endif
 
-#ifdef CONFIG_CHECK_DRIVER_BY_CHIPID
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3E)
-#endif
-#if defined CONFIG_UWE5623 || defined CONFIG_CHECK_DRIVER_BY_CHIPID
-	{
-		wcn_dump_array_size = ARRAY_SIZE(s_wcn_dump_regs_5623);
-		memcpy(s_wcn_dump_regs, s_wcn_dump_regs_5623,
-		       sizeof(s_wcn_dump_regs_5623));
-	}
-#endif
 
 	/* DUMP ARM REG */
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
-#ifdef CONFIG_UWE5623
-	#ifdef CONFIG_WCN_SWD
-	swd_dump_arm_reg();
-	#endif
-#else
 	dump_arm_reg();
-#endif
 
-#else /*CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3E)
-		swd_dump_arm_reg();
-	else
-		dump_arm_reg();
-#endif
 
 	dump_dummy_read();
 	mdbg_clear_log();
@@ -1317,18 +1202,6 @@ int mdbg_dump_mem(void)
 	if (wcn_fill_dump_head_info(s_wcn_dump_regs, wcn_dump_array_size))
 		return -1;
 
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
-#ifdef CONFIG_UWE5623
-	wcn_dump_cp_data(s_wcn_dump_regs, 0, wcn_dump_array_size - 1);
-
-	goto end;
-#endif
-#else /*CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3E) {
-		wcn_dump_cp_data(s_wcn_dump_regs, 0, wcn_dump_array_size - 1);
-		goto end;
-	}
-#endif /*CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 	count = mdbg_dump_data(CP_START_ADDR, NULL, FIRMWARE_MAX_SIZE, 0);
 	if (count <= 0) {

@@ -157,19 +157,12 @@ static int mem_pd_power_switch(int subsys, int val)
 			}
 			MEM_PD_MGR_INFO("wifi irammem power on");
 			/* wifi dram mem pd range */
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
 #else
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG3;
 #endif
 
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-			if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L)
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
-			else
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG3;
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 			ret = sprdwcn_bus_reg_read(wif_bt_mem_cfg, &reg_val, 4);
 			if (!(ret == 0)) {
@@ -218,19 +211,12 @@ static int mem_pd_power_switch(int subsys, int val)
 			MEM_PD_MGR_INFO("wifi irammem power down");
 			/* wifi dram mem pd range */
 
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
 #else
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG3;
 #endif
 
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-		if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L)
-			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
-		else
-			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG3;
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 			ret = sprdwcn_bus_reg_read(wif_bt_mem_cfg, &reg_val, 4);
 			if (!(ret == 0)) {
@@ -260,7 +246,6 @@ static int mem_pd_power_switch(int subsys, int val)
 				return ret;
 			}
 			/* bt iram mem pd range */
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
 			bt_ram_mask = mem_info_cp.bt_dram_mask;
@@ -269,17 +254,6 @@ static int mem_pd_power_switch(int subsys, int val)
 			bt_ram_mask = mem_info_cp.bt_iram_mask;
 #endif
 
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-
-			if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
-				bt_ram_mask = mem_info_cp.bt_dram_mask;
-			} else {
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG1;
-				bt_ram_mask = mem_info_cp.bt_iram_mask;
-			}
-
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 			ret = sprdwcn_bus_reg_read(wif_bt_mem_cfg, &reg_val, 4);
 			if (!(ret == 0)) {
@@ -307,22 +281,12 @@ static int mem_pd_power_switch(int subsys, int val)
 				return ret;
 			}
 			/* bt iram mem pd range */
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
 			bt_ram_mask = mem_info_cp.bt_dram_mask;
 #else
 			wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG1;
 			bt_ram_mask = mem_info_cp.bt_iram_mask;
-#endif
-#else
-			if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG2;
-				bt_ram_mask = mem_info_cp.bt_dram_mask;
-			} else{
-				wif_bt_mem_cfg = REG_AON_APB_BTWF_MEM_CGG1;
-				bt_ram_mask = mem_info_cp.bt_iram_mask;
-			}
 #endif
 			ret = sprdwcn_bus_reg_read(wif_bt_mem_cfg, &reg_val, 4);
 			if (!(ret == 0)) {
@@ -481,7 +445,6 @@ static int mem_pd_read_add_from_cp(void)
 	mem_info_cp.wifi_end_addr = wifi_end + SDIO_CP_BASE_ADD;
 	mem_info_cp.wifi_size = wifi_end - wifi_begin;
 
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 	mem_info_cp.bt_iram_mask = 0;
 	mem_info_cp.bt_dram_mask = 0xC00;
@@ -494,21 +457,6 @@ static int mem_pd_read_add_from_cp(void)
 	mem_info_cp.wifi_dram_mask = 0x1FFF0000;
 #endif
 
-#else /*ELOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
-
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-		mem_info_cp.bt_iram_mask = 0;
-		mem_info_cp.bt_dram_mask = 0xC00;
-		mem_info_cp.wifi_iram_mask = 0xFC00;
-		mem_info_cp.wifi_dram_mask = 0x80;
-	} else {
-		mem_info_cp.bt_iram_mask = 0x0FE00000;
-		mem_info_cp.bt_dram_mask = 0;
-		mem_info_cp.wifi_iram_mask = 0xE0000000;
-		mem_info_cp.wifi_dram_mask = 0x1FFF0000;
-	}
-
-#endif /*EOF CONFIG_CHECK_DRIVER_BY_CHIPID*/
 
 	mem_pd.wifi_mem = kmalloc(mem_info_cp.wifi_size, GFP_KERNEL);
 	if (!mem_pd.wifi_mem) {

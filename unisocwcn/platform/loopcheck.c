@@ -117,16 +117,9 @@ int get_board_ant_num(void)
 	/* 2. uwe5622 module:
 	 * Antenna num is fixed to one.
 	 */
-#ifndef CONFIG_CHECK_DRIVER_BY_CHIPID
 #ifdef CONFIG_UWE5622
 	WCN_INFO("%s [one_ant]\n", __func__);
 	return MARLIN_ONE_ANT;
-#endif
-#else /*CONFIG_CHECK_DRIVER_BY_CHIPID*/
-	if (wcn_get_chip_model() == WCN_CHIP_MARLIN3L) {
-		WCN_INFO("%s [one_ant]\n", __func__);
-		return MARLIN_ONE_ANT;
-	}
 #endif
 
 	/* 3. Other situations:

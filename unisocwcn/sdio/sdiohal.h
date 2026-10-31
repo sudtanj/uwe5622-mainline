@@ -80,9 +80,6 @@ extern long int sdiohal_log_level;
 #define SDIOHAL_RX_INBAND_IRQ	1
 #define SDIOHAL_RX_POLLING	2
 
-#ifdef CONFIG_UWE5623
-#define SDIO_RESET_ENABLE 0x40930040
-#endif
 
 /* channel numbers */
 #define SDIO_CHN_TX_NUM 12
