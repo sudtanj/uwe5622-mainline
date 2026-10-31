@@ -53,7 +53,6 @@ static int at_cmd_send(char *buf, unsigned int len)
 #ifdef CONFIG_WCN_LOOPCHECK
 static void loopcheck_work_queue(struct work_struct *work)
 {
-	int ret;
 	unsigned long timeleft;
 	char a[] = "at+loopcheck\r\n";
 
@@ -75,8 +74,8 @@ static void loopcheck_work_queue(struct work_struct *work)
 		return;
 	}
 
-	ret = queue_delayed_work(loopcheck.workqueue, &loopcheck.work,
-				 LOOPCHECK_TIMER_INTERVAL * HZ);
+	queue_delayed_work(loopcheck.workqueue, &loopcheck.work,
+			   LOOPCHECK_TIMER_INTERVAL * HZ);
 }
 #endif
 

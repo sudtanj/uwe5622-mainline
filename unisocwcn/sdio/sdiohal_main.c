@@ -315,7 +315,7 @@ static int sdiohal_config_packer_chain(struct sdiohal_list_t *data_list,
 	struct mmc_host *host = sdio_func->card->host;
 	bool fifo = (fix_inc == SDIOHAL_DATA_FIX);
 	uint fn_num = sdio_func->num;
-	uint blk_num, blk_size, max_blk_count, max_req_size;
+	uint blk_num, blk_size, max_blk_count;
 	struct mbuf_t *mbuf_node;
 	unsigned int sg_count, sg_data_size;
 	unsigned int i, ttl_len = 0, node_num;
@@ -330,8 +330,6 @@ static int sdiohal_config_packer_chain(struct sdiohal_list_t *data_list,
 	blk_size = SDIOHAL_BLK_SIZE;
 	max_blk_count = min_t(unsigned int,
 			      host->max_blk_count, (uint)MAX_IO_RW_BLK);
-	max_req_size = min_t(unsigned int,
-			     max_blk_count * blk_size, host->max_req_size);
 
 	sg_count = 0;
 	memset(&mmc_req, 0, sizeof(struct mmc_request));

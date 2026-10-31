@@ -753,10 +753,11 @@ static int sdiohal_test_int_init(unsigned char func_tag)
 {
 #ifdef CONFIG_WCN_PARSE_DTS
 	struct device_node *np;
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	struct gpio_desc *pub_gpio_desc = NULL;
-#else
+#endif
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0)
 	unsigned int pub_gpio_num = 0;
 #endif
 	unsigned char reg_int_en = 0;
@@ -818,6 +819,8 @@ static int sdiohal_test_int_init(unsigned char func_tag)
 			IRQF_TRIGGER_HIGH | IRQF_NO_SUSPEND,
 			"sdiohal_test_irq",
 			NULL);
+	if (ret)
+		sdiohal_err("request irq %d fail %d\n", sdiohal_public_irq, ret);
 
 	/* enable sdio cp to ap int */
 	sprdwcn_bus_aon_writeb(REG_TO_AP_ENABLE_0, 0xff);

@@ -170,7 +170,6 @@ int woble_data_recv(const unsigned char *buf, int count)
 	const unsigned char *rxmsg = buf;
 	int left_length = count;
 	int pack_length = 0;
-	int last = 0;
 	int ret = -1;
 
 	if (count < 0) {
@@ -205,7 +204,6 @@ int woble_data_recv(const unsigned char *buf, int count)
 				status = rxmsg[3];
 				break;
 			}
-			last = left_length;
 			left_length -= pack_length;
 			break;
 		default:

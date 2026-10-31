@@ -88,11 +88,7 @@ void mdbg_assert_interface(char *str)
 #endif
 
 	memset(mdbg_proc->assert.buf, 0, MDBG_ASSERT_SIZE);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
-	strscpy(mdbg_proc->assert.buf, str, MDBG_ASSERT_SIZE);
-#else
-	strncpy(mdbg_proc->assert.buf, str, len);
-#endif
+	memcpy(mdbg_proc->assert.buf, str, len);
 	WCN_INFO("mdbg_assert_interface:%s\n",
 		(char *)(mdbg_proc->assert.buf));
 
@@ -508,9 +504,9 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	char x;
-	int ret;
 #ifdef MDBG_PROC_CMD_DEBUG
 	char *tempbuf = NULL;
+	int ret;
 	int i;
 #endif
 

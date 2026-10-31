@@ -429,28 +429,28 @@ static void swd_line_reset(void)
 
 static void swd_read_dpidr(void)
 {
-	u32 ack, data = 0;
+	u32 data = 0;
 
 	/* the dp idr is 0x0be12477*/
-	ack = swd_dap_read(DP_IDCODE, &data);
+	swd_dap_read(DP_IDCODE, &data);
 
 	pr_info("%s idcode:0x%x\n", __func__, data);
 }
 
 static void swd_read_apidr(void)
 {
-	u32 ack, data = 0;
+	u32 data = 0;
 
 	data = (0xf << 4);
-	ack = swd_dap_write(DP_SELECT, &data);
+	swd_dap_write(DP_SELECT, &data);
 
 	/* the dp idr is 0x14770015*/
-	ack = swd_ap_read(AP_IDCODE, &data);
-	ack = swd_ap_read(AP_IDCODE, &data);
+	swd_ap_read(AP_IDCODE, &data);
+	swd_ap_read(AP_IDCODE, &data);
 	pr_info("%s idcode:0x%x\n", __func__, data);
 
 	data = (0x0 << 4);
-	ack = swd_dap_write(DP_SELECT, &data);
+	swd_dap_write(DP_SELECT, &data);
 }
 
 

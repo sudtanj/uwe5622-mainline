@@ -113,7 +113,6 @@ static long int mdbg_comm_write(char *buf,
 static void mdbg_ring_rx_task(struct work_struct *work)
 {
 	struct ring_rx_data *rx = NULL;
-	struct mdbg_ring_t *ring = NULL;
 	struct mbuf_t *mbuf_node;
 	int i;
 #ifdef CONFIG_WCN_SDIO
@@ -137,7 +136,6 @@ static void mdbg_ring_rx_task(struct work_struct *work)
 	}
 	if (!list_empty(&ring_dev->rx_head))
 		schedule_work(&ring_dev->rx_task);
-	ring = ring_dev->ring;
 	spin_unlock_bh(&ring_dev->rw_lock);
 
 	for (i = 0, mbuf_node = rx->head; i < rx->num; i++,
@@ -146,7 +144,7 @@ static void mdbg_ring_rx_task(struct work_struct *work)
 		rx->addr = mbuf_node->buf + PUB_HEAD_RSV;
 		puh = (struct bus_puh_t *)mbuf_node->buf;
 #ifdef CONFIG_WCND
-		mdbg_ring_write(ring, rx->addr, puh->len);
+		mdbg_ring_write(ring_dev->ring, rx->addr, puh->len);
 #else
 		log_rx_callback(rx->addr, puh->len);
 #endif

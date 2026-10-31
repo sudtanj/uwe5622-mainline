@@ -56,7 +56,7 @@ static int data_ready(uint8_t *buf, uint32_t count)
 static void parse_frame(data_ready_cb data_ready, frame_complete_cb frame_complete)
 {
 	uint8_t byte;
-	size_t buffer_size, bytes_read;
+	size_t bytes_read;
 
 	while (data_ready(&byte, 1) == 1) {
 		switch (rd->state) {
@@ -84,8 +84,6 @@ static void parse_frame(data_ready_cb data_ready, frame_complete_cb frame_comple
 					(rd->type == DATA_TYPE_ACL) ?
 					RETRIEVE_ACL_LENGTH(rd->preamble)
 					: byte;
-				buffer_size = rd->index
-					+ rd->bytes_remaining;
 				memcpy(rd->buffer,
 					rd->preamble,
 					rd->index);

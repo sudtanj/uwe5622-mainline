@@ -1170,7 +1170,6 @@ static int gnss_download_from_partition(void)
 static int gnss_download_firmware(void)
 {
 	const struct firmware *firmware;
-	char *buf;
 	int err;
 
 	if (marlin_dev->is_gnss_in_sysfs == 1) {
@@ -1179,7 +1178,6 @@ static int gnss_download_firmware(void)
 	}
 
 	WCN_INFO("%s start from /system/etc/firmware/\n", __func__);
-	buf = marlin_dev->write_buffer;
 	err = request_firmware(&firmware, GNSS_FW_NAME, NULL);
 	if (err < 0) {
 		WCN_ERR("%s no find %s err:%d(ignore)\n",
@@ -3609,10 +3607,12 @@ static const struct dev_pm_ops marlin_pm_ops = {
 	.resume	= marlin_resume,
 };
 
+#ifdef CONFIG_WCN_PARSE_DTS
 static const struct of_device_id marlin_match_table[] = {
 	{.compatible = "unisoc,uwe_bsp",},
 	{ },
 };
+#endif
 
 static struct platform_driver marlin_driver = {
 	.driver = {
