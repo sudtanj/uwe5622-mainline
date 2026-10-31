@@ -50,23 +50,6 @@ static const struct ieee80211_regdomain regdom_cn = {
 	}
 };
 
-static const struct ieee80211_regdomain regdom_us01 = {
-	.n_reg_rules = 6,
-	.reg_rules = {
-	/* channels 1..11 */
-	SPRD_REG_RULE(2412-10, 2462+10, 40, 0),
-	/* channels 36..48 */
-	SPRD_REG_RULE(5180-10, 5240+10, 40, 0),
-	/* channels 56..64 */
-	SPRD_REG_RULE(5260-10, 5320+10, 40, NL80211_RRF_DFS),
-	/* channels 100..118 */
-	SPRD_REG_RULE(5500-10, 5590+10, 40, NL80211_RRF_DFS),
-	/* channels 132..140 */
-	SPRD_REG_RULE(5660-10, 5700+10, 40, NL80211_RRF_DFS),
-	/* channels 149..165 */
-	SPRD_REG_RULE(5745-10, 5825+10, 40, 0) }
-};
-
 static const struct ieee80211_regdomain regdom_us = {
 	.n_reg_rules = 5,
 	.dfs_region = NL80211_DFS_FCC,
@@ -137,11 +120,6 @@ static const struct ieee80211_regdomain regdom_tr = {
 static const struct sprd_regdomain sprd_regdom_00 = {
 	.country_code = "00",
 	.prRegdRules = &world_regdom
-};
-
-static const struct sprd_regdomain sprd_regdom_us01 = {
-	.country_code = "US01",
-	.prRegdRules = &regdom_us01
 };
 
 static const struct sprd_regdomain sprd_regdom_us = {

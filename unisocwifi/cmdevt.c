@@ -884,11 +884,11 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 #endif
 		/* Version 1 Section */
 		p = (struct sprdwl_cmd_fw_info *)r_buf;
-		priv->chip_model = p->chip_model;
-		priv->chip_ver = p->chip_version;
-		priv->fw_ver = p->fw_version;
-		priv->fw_capa = p->fw_capa;
-		priv->fw_std = p->fw_std;
+		priv->chip_model = le32_to_cpu(p->chip_model);
+		priv->chip_ver = le32_to_cpu(p->chip_version);
+		priv->fw_ver = le32_to_cpu(p->fw_version);
+		priv->fw_capa = le32_to_cpu(p->fw_capa);
+		priv->fw_std = le32_to_cpu(p->fw_std);
 		priv->max_ap_assoc_sta = p->max_ap_assoc_sta;
 		priv->max_acl_mac_addrs = p->max_acl_mac_addrs;
 		priv->max_mc_mac_addrs = p->max_mc_mac_addrs;
@@ -1207,7 +1207,7 @@ int sprdwl_set_ie(struct sprdwl_priv *priv, u8 vif_ctx_id, u8 type,
 
 	p = (struct sprdwl_cmd_set_ie *)msg->data;
 	p->type = type;
-	p->len = len;
+	p->len = cpu_to_le16(len);
 	memcpy(p->data, ie, len);
 
 	return sprdwl_cmd_send_recv(priv, msg, CMD_WAIT_TIMEOUT, NULL, NULL);
@@ -1324,7 +1324,7 @@ int sprdwl_scan(struct sprdwl_priv *priv, u8 vif_ctx_id,
 		return -ENOMEM;
 
 	p = (struct sprdwl_cmd_scan *)msg->data;
-	p->channels = channels;
+	p->channels = cpu_to_le32(channels);
 	if (ssid_len > 0) {
 		memcpy(p->ssid, ssid_list, ssid_len);
 		p->ssid_len = cpu_to_le16(ssid_len);

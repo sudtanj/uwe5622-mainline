@@ -195,12 +195,12 @@ static __poll_t wcnlog_poll(struct file *filp, poll_table *wait)
 	MDBG_LOG("wcnlog_poll\n");
 	if ((!mdbg_dev) || (mdbg_dev->exit_flag)) {
 		WCN_INFO("wcnlog_poll exit!\n");
-		mask |= POLLIN | POLLERR;
+		mask |= EPOLLIN | EPOLLERR;
 		return mask;
 	}
 	poll_wait(filp, &mdbg_dev->rxwait, wait);
 	if (mdbg_content_len() > 0)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

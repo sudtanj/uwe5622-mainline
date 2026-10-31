@@ -833,7 +833,7 @@ static __poll_t mdbg_proc_poll(struct file *filp, poll_table *wait)
 	if (strcmp(type, "assert") == 0) {
 		poll_wait(filp, &mdbg_proc->assert.rxwait, wait);
 		if (mdbg_proc->assert.rcv_len > 0)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	if (strcmp(type, "loopcheck") == 0) {
@@ -842,7 +842,7 @@ static __poll_t mdbg_proc_poll(struct file *filp, poll_table *wait)
 					wcn_get_module_status_changed());
 		if (wcn_get_module_status_changed()) {
 			wcn_set_module_status_changed(false);
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		}
 	}
 

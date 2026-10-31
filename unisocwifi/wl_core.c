@@ -105,7 +105,7 @@ static void adjust_tdls_threshold(char *buf, unsigned char offset)
 	wl_err("%s, change tdls_threshold to %d\n", __func__, value);
 }
 
-struct debuginfo_s {
+static struct debuginfo_s {
 	void (*func)(char *, unsigned char offset);
 	char str[30];
 } debuginfo[] = {
@@ -523,7 +523,6 @@ static struct sprdwl_if_ops sprdwl_core_ops = {
 extern struct sprdwl_priv *g_sprdwl_priv;
 extern void sprdwl_cancel_scan(struct sprdwl_vif *vif);
 extern void sprdwl_cancel_sched_scan(struct sprdwl_vif *vif);
-static struct completion wifi_reset_ready;
 extern void sprdwl_net_flowcontrl(struct sprdwl_priv *priv, enum sprdwl_mode mode, bool state);
 
 static void sprdwl_wifi_reset(void)

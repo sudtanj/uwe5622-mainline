@@ -59,16 +59,10 @@ static void str2mac(const char *mac_addr, u8 *mac)
 
 void sprdwl_netif_rx(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct sprdwl_vif *vif;
 #if defined(RX_NAPI) || defined(MORE_DEBUG)
-	struct sprdwl_intf *intf;
-	struct sprdwl_rx_if *rx_if = NULL;
-#endif
-
-	vif = netdev_priv(ndev);
-#if defined(RX_NAPI) || defined(MORE_DEBUG)
-	intf = (struct sprdwl_intf *)(vif->priv->hw_priv);
-	rx_if = (struct sprdwl_rx_if *)intf->sprdwl_rx;
+	struct sprdwl_vif *vif = netdev_priv(ndev);
+	struct sprdwl_intf *intf = (struct sprdwl_intf *)(vif->priv->hw_priv);
+	struct sprdwl_rx_if *rx_if = (struct sprdwl_rx_if *)intf->sprdwl_rx;
 #endif
 
 	wl_hex_dump(L_DBG, "RX packet: ", DUMP_PREFIX_OFFSET,
