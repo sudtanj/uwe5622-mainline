@@ -237,8 +237,29 @@ hardware test rather than a proof from the build map:
 Still to do in this phase:
 
 - Replace vendor logging macros with `dev_*`/`pr_*`
-- Fix everything `W=1` and `sparse` report; make `checkpatch --strict` clean on
-  touched files
+- Make `checkpatch --strict` clean on touched files
+
+### Phase 1b — `W=1` and sparse clean (done)
+
+All four CI kernels now build the three modules with `W=1` and sparse
+(built from kernel.org git, because Ubuntu's sparse is too old for 7.x
+headers). The "Extra warnings and sparse" step is a gate: any warning not
+listed in `.github/known-warnings.txt` fails CI. Every fix was
+behaviour-neutral: `static`, prototypes, `const`, endianness and address-space
+annotations, `NULL` for pointers, unused variables.
+
+Known issues for Phase 2 (the five accepted warnings; each needs a logic
+change):
+
+- `unisocwcn/platform/wcn_procfs.c`: the result of `kstrtol()` is never
+  checked, so a malformed procfs write is silently accepted.
+- `unisocwifi/txrx.c`: `eth->h_proto` (network order) is compared with
+  host-order `ETH_P_IP`/`ETH_P_IPV6`, so the test is always true on
+  little-endian. Fixing it changes which broadcast frames are looped back in
+  AP mode.
+- `unisocwifi/rx_msg.h`, `unisocwifi/vendor.h`: firmware structs holding an
+  array of structs that end in a flexible array; the accessors need
+  rewriting.
 
 ### Phase 2 — restructure
 

@@ -15,7 +15,7 @@ possible.
 | Code | Imported from [armbian/uwe5622](https://github.com/armbian/uwe5622) with full history. Vendor-derived; large and noisy. |
 | Builds against | longterm 6.18 / 6.12, latest stable, mainline: checked weekly by CI |
 | Tested on hardware | **Not yet** from this repository. Armbian's tree is in daily use on Zero 2/Zero 3 images. |
-| Rewrite | Phase 1 (dead code for the SDIO build removed; `unisocwcn` halved). Plan in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Rewrite | Phase 1 done: dead code removed (`unisocwcn` halved), `W=1` and sparse clean with a CI gate. Plan in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 
 Chip capabilities: 2.4 GHz 802.11b/g/n, Bluetooth classic + BLE, GNSS (unused
 here). The chip is attached over SDIO on the Zero 3.
