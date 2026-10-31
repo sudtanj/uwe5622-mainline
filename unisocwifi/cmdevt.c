@@ -647,11 +647,8 @@ out:
 static int sprdwl_cmd_send_recv_no_wait(struct sprdwl_priv *priv,
 			 struct sprdwl_msg_buf *msg)
 {
-	u8 cmd_id;
 	int ret = 0;
 	struct sprdwl_cmd *cmd = &g_sprdwl_cmd;
-	struct sprdwl_cmd_hdr *hdr;
-	u8 ctx_id;
 
 	if (sprdwl_cmd_lock(cmd)) {
 		wl_err("%s, %d, error!\n", __func__, __LINE__);
@@ -660,9 +657,6 @@ static int sprdwl_cmd_send_recv_no_wait(struct sprdwl_priv *priv,
 		goto out;
 	}
 
-	hdr = (struct sprdwl_cmd_hdr *)(msg->tran_data + priv->hw_offset);
-	cmd_id = hdr->cmd_id;
-	ctx_id = hdr->common.ctx_id;
 
 	ret = sprdwl_cmd_send_to_ic(priv, msg);
 	if (ret) {
@@ -3089,9 +3083,7 @@ int sprdwl_send_tdlsdata_use_cmd(struct sk_buff *skb,
 {
 	struct sprdwl_msg_buf *msg;
 	struct sprdwl_cmd_tdls *p;
-	struct sprdwl_intf *intf;
 
-	intf = (struct sprdwl_intf *)(vif->priv->hw_priv);
 	msg = sprdwl_cmd_getbuf(vif->priv, sizeof(*p) + skb->len, vif->ctx_id,
 		SPRDWL_HEAD_RSP, WIFI_CMD_TDLS);
 	if (!msg)

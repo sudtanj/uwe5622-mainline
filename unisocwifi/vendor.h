@@ -154,12 +154,6 @@ enum sprdwl_wlan_vendor_attr_ll_stats_set {
 	SPRDWL_LL_STATS_SET_AFTER_LAST - 1,
 };
 
-static const struct nla_policy
-sprdwl_ll_stats_policy[SPRDWL_LL_STATS_SET_MAX + 1] = {
-	[SPRDWL_LL_STATS_MPDU_THRESHOLD] = { .type = NLA_U32 },
-	[SPRDWL_LL_STATS_GATHERING] = { .type = NLA_U32 },
-};
-
 enum sprdwl_vendor_attr_ll_stats_results {
 	SPRDWL_LL_STATS_INVALID = 0,
 	SPRDWL_LL_STATS_RESULTS_REQ_ID = 1,

@@ -1327,7 +1327,6 @@ int sprdwl_tx_msg_func(void *pdev, struct sprdwl_msg_buf *msg)
 static int sprdwl_tx_work_queue(void *data)
 {
 	unsigned long need_polling = 0;
-	unsigned int polling_times = 0;
 	struct sprdwl_intf *intf;
 	struct sprdwl_tx_msg *tx_msg;
 	enum sprdwl_mode mode = SPRDWL_MODE_NONE;
@@ -1344,7 +1343,6 @@ static int sprdwl_tx_work_queue(void *data)
 		if (intf->exit || kthread_should_stop())
 			return 0;
 		need_polling = 0;
-		polling_times = 0;
 		/*During hang recovery, send data is not allowed.
 		* but we still need to send cmd to cp2
 		*/
@@ -1621,11 +1619,7 @@ static int sprdwl_mc_pkt_checksum(struct sk_buff *skb, struct net_device *ndev)
 	struct ipv6hdr *ipv6hdr;
 	__sum16 checksum = 0;
 	unsigned char iphdrlen = 0;
-	struct sprdwl_vif *vif;
-	struct sprdwl_intf *intf;
 
-	vif = netdev_priv(ndev);
-	intf = (struct sprdwl_intf *)vif->priv->hw_priv;
 	ipv6hdr = (struct ipv6hdr *)(skb->data + ETHER_HDR_LEN);
 	iphdrlen = sizeof(*ipv6hdr);
 

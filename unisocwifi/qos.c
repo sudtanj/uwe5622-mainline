@@ -370,18 +370,10 @@ unsigned int tid_map_to_qosindex(unsigned char tid)
 unsigned int get_tid_qosindex(void *skb, int data_offset, unsigned char *tid, unsigned char *tos)
 {
 	int priority;
-	struct ether_header *eh;
 
 	if (0 == g_qos_enable)
 		return SPRDWL_AC_BE;
 	/* vo vi bk be*/
-	eh =
-	(struct ether_header *)(((struct sk_buff *)(skb))->data + data_offset);
-
-	/*if (cpu_to_be16(ETHER_TYPE_IP) != eh->ether_type &&
-	   cpu_to_be16(ETHER_TYPE_IPV6) != eh->ether_type) {
-		goto OUT;
-	}*/
 	priority = pkt_get_prio(skb, data_offset, tos);
 	*tid = priority;
 

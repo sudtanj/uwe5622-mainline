@@ -829,7 +829,6 @@ void wlan_ba_session_event(void *hw_intf,
 	unsigned char type = ba_event->type;
 	int ret = 0;
 	struct sprdwl_peer_entry *peer_entry = NULL;
-	u8 qos_index;
 
 	switch (type) {
 	case SPRDWL_ADDBA_REQ_EVENT:
@@ -854,7 +853,6 @@ void wlan_ba_session_event(void *hw_intf,
 		break;
 	case SPRDWL_DELTXBA_EVENT:
 		peer_entry = &intf->peer_entry[ba_event->sta_lut_index];
-		qos_index = tid_map_to_qosindex(ba_event->tid);
 		peer_entry = &intf->peer_entry[ba_event->sta_lut_index];
 		if (test_and_clear_bit(ba_event->tid, &peer_entry->ba_tx_done_map))
 			wl_info("%s, %d, deltxba, lut=%d, tid=%d, map=%lu\n",

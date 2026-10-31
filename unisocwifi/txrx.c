@@ -99,9 +99,7 @@ int sprdwl_send_data_fpga_test(struct sprdwl_priv *priv,
 int sprdwl_send_cmd(struct sprdwl_priv *priv, struct sprdwl_msg_buf *msg)
 {
 	int ret;
-	struct sk_buff *skb;
 
-	skb = msg->skb;
 	ret = sprdwl_intf_tx(priv, msg);
 	if (ret) {
 		wl_err("%s TX cmd Err: %d\n", __func__, ret);

@@ -60,12 +60,16 @@ static void str2mac(const char *mac_addr, u8 *mac)
 void sprdwl_netif_rx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct sprdwl_vif *vif;
+#if defined(RX_NAPI) || defined(MORE_DEBUG)
 	struct sprdwl_intf *intf;
 	struct sprdwl_rx_if *rx_if = NULL;
+#endif
 
 	vif = netdev_priv(ndev);
+#if defined(RX_NAPI) || defined(MORE_DEBUG)
 	intf = (struct sprdwl_intf *)(vif->priv->hw_priv);
 	rx_if = (struct sprdwl_rx_if *)intf->sprdwl_rx;
+#endif
 
 	wl_hex_dump(L_DBG, "RX packet: ", DUMP_PREFIX_OFFSET,
 			     16, 1, skb->data, skb->len, 0);
@@ -1555,7 +1559,6 @@ static void sprdwl_init_debugfs(struct sprdwl_priv *priv)
 
 int sprdwl_core_init(struct device *dev, struct sprdwl_priv *priv)
 {
-	u8 *efuse_mac_addr = NULL;
 	struct wiphy *wiphy = priv->wiphy;
 	struct wireless_dev *wdev;
 	int ret;
@@ -1580,8 +1583,6 @@ int sprdwl_core_init(struct device *dev, struct sprdwl_priv *priv)
 	}
 	sprdwl_init_debugfs(priv);
 
-	if (is_valid_ether_addr(priv->mac_addr))
-		efuse_mac_addr = priv->mac_addr;
 	rtnl_lock();
 	wdev = sprdwl_add_iface(priv, "wlan%d", NL80211_IFTYPE_STATION, NULL);
 	rtnl_unlock();

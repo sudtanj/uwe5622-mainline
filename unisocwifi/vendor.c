@@ -144,6 +144,12 @@ static int sprdwl_llstat(struct sprdwl_priv *priv, u8 vif_ctx_id, u8 subtype,
 					    r_len);
 }
 
+static const struct nla_policy
+sprdwl_ll_stats_policy[SPRDWL_LL_STATS_SET_MAX + 1] = {
+	[SPRDWL_LL_STATS_MPDU_THRESHOLD] = { .type = NLA_U32 },
+	[SPRDWL_LL_STATS_GATHERING] = { .type = NLA_U32 },
+};
+
 /*set link layer status function-----CMD ID:14*/
 static int sprdwl_vendor_set_llstat_handler(struct wiphy *wiphy,
 					    struct wireless_dev *wdev,
@@ -881,9 +887,9 @@ static int sprdwl_vendor_get_channel_list(struct wiphy *wiphy,
 					  struct wireless_dev *wdev,
 					  const void *data, int len)
 {
-	int ret = 0, payload, request_id;
+	int ret = 0, payload;
 	int type;
-	int band = 0, max_channel;
+	int band = 0;
 	int rem_len;
 	struct nlattr *pos;
 	struct sprdwl_cmd_gscan_channel_list channel_list;
@@ -898,13 +904,11 @@ static int sprdwl_vendor_get_channel_list(struct wiphy *wiphy,
 		type = nla_type(pos);
 		switch (type) {
 		case GSCAN_ATTR_SUBCMD_CONFIG_PARAM_REQUEST_ID:
-			request_id = nla_get_s32(pos);
 		break;
 		case GSCAN_ATTR_GET_VALID_CHANNELS_CONFIG_PARAM_WIFI_BAND:
 			band = nla_get_s32(pos);
 		break;
 		case GSCAN_ATTR_GET_VALID_CHANNELS_CONFIG_PARAM_MAX_CHANNELS:
-			max_channel = nla_get_s32(pos);
 		break;
 		default:
 			wl_ndev_log(L_ERR, vif->ndev, "nla type 0x%x not support\n",
@@ -972,7 +976,6 @@ static int sprdwl_vendor_get_gscan_capabilities(struct wiphy *wiphy,
 	struct sk_buff *reply;
 	int ret = 0, payload;
 	struct sprdwl_vif *vif = netdev_priv(wdev->netdev);
-	struct sprdwl_cmd_gscan_rsp_header *hdr;
 	struct sprdwl_gscan_capa *p = NULL;
 	void *rbuf;
 
@@ -993,7 +996,6 @@ static int sprdwl_vendor_get_gscan_capabilities(struct wiphy *wiphy,
 			   __func__);
 		goto out;
 	}
-	hdr = (struct sprdwl_cmd_gscan_rsp_header *)rbuf;
 	p = (struct sprdwl_gscan_capa *)
 	    (rbuf + sizeof(struct sprdwl_cmd_gscan_rsp_header));
 	wl_info("cache_size: %d scan_bucket:%d\n",
@@ -1059,7 +1061,7 @@ static int sprdwl_vendor_get_cached_gscan_results(struct wiphy *wiphy,
 					   const void *data, int len)
 {
 	int ret = 0, i, j, rlen, payload, request_id = 0, moredata = 0;
-	int rem_len, type, flush = 0, max_param = 0, n, buckets_scanned = 1;
+	int rem_len, type, n, buckets_scanned = 1;
 	struct sprdwl_vif *vif = netdev_priv(wdev->netdev);
 	struct sk_buff *reply;
 	struct nlattr *pos, *scan_res, *cached_list, *res_list;
@@ -1071,10 +1073,8 @@ static int sprdwl_vendor_get_cached_gscan_results(struct wiphy *wiphy,
 			request_id = nla_get_u32(pos);
 		break;
 		case GSCAN_ATTR_GET_CACHED_SCAN_RESULTS_CONFIG_PARAM_FLUSH:
-			flush = nla_get_u32(pos);
 		break;
 		case GSCAN_ATTR_GET_CACHED_SCAN_RESULTS_CONFIG_PARAM_MAX:
-			max_param = nla_get_u32(pos);
 		break;
 		default:
 			wl_ndev_log(L_ERR, vif->ndev, "nla gscan result 0x%x not support\n",
@@ -1383,7 +1383,6 @@ int sprdwl_vendor_cache_significant_change_result(struct sprdwl_vif *vif,
 							u8 *data, u16 data_len)
 {
 	struct sprdwl_priv *priv = vif->priv;
-	struct significant_change_info *frame;
 	struct sprdwl_significant_change_result *p = priv->significant_res;
 	u8 *pos = data;
 	u16 avail_len = data_len;
@@ -1409,7 +1408,6 @@ int sprdwl_vendor_cache_significant_change_result(struct sprdwl_vif *vif,
 		}
 
 		pos++;
-		frame = (struct significant_change_info *)pos;
 
 		memcpy((void *)(&p->results[p->num_results]),
 		       (void *)pos, sizeof(struct significant_change_info));
@@ -1513,7 +1511,7 @@ void sprdwl_report_gscan_result(struct sprdwl_vif *vif,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)frame;
 	struct ieee80211_channel *channel;
 	struct sprdwl_gscan_result *gscan_res = NULL;
-	u16 capability, beacon_interval;
+	u16 beacon_interval;
 	u32 freq;
 	s32 signal;
 	u64 tsf;
@@ -1544,7 +1542,6 @@ void sprdwl_report_gscan_result(struct sprdwl_vif *vif,
 	/*tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);*/
 	tsf = jiffies;
 	beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
-	capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	wl_ndev_log(L_DBG, vif->ndev, "   %s, %pM, channel %2u, signal %d\n",
 		   ieee80211_is_probe_resp(mgmt->frame_control)
 		   ? "proberesp" : "beacon   ", mgmt->bssid, chan, rssi);
@@ -2209,13 +2206,13 @@ out:
 }
 
 /**
- * get concurrency matrix function---CMD ID:42
  * sprdwl_vendor_get_concurrency_matrix() - to retrieve concurrency matrix
  * @wiphy: pointer phy adapter
  * @wdev: pointer to wireless device structure
  * @data: pointer to data buffer
- * @data: length of data
+ * @len: length of data
  *
+ * get concurrency matrix function---CMD ID:42
  * This routine will give concurrency matrix
  *
  * Return: int status code
@@ -2437,7 +2434,6 @@ static int sprdwl_vendor_get_driver_info(struct wiphy *wiphy,
 {
 	int ret, payload = 0;
 	struct sk_buff *reply;
-	uint8_t attr;
 	struct sprdwl_priv *priv = wiphy_priv(wiphy);
 	struct nlattr *tb_vendor[SPRDWL_ATTR_WIFI_INFO_GET_MAX + 1];
 	char version[32];
@@ -2457,13 +2453,11 @@ static int sprdwl_vendor_get_driver_info(struct wiphy *wiphy,
 	if (tb_vendor[SPRDWL_ATTR_WIFI_INFO_DRIVER_VERSION]) {
 		wl_info("Recived req for Drv version\n");
 		memcpy(version, &priv->wl_ver, sizeof(version));
-		attr = SPRDWL_ATTR_WIFI_INFO_DRIVER_VERSION;
 		payload = sizeof(priv->wl_ver);
 	} else if (tb_vendor[SPRDWL_ATTR_WIFI_INFO_FIRMWARE_VERSION]) {
 		wl_info("Recived req for FW version\n");
 		snprintf(version, sizeof(version), "%d", priv->fw_ver);
 		wl_info("fw version:%s\n", version);
-		attr = SPRDWL_ATTR_WIFI_INFO_FIRMWARE_VERSION;
 		payload = strlen(version);
 	}
 
@@ -2660,7 +2654,7 @@ static int sprdwl_vendor_set_ssid_hotlist(struct wiphy *wiphy,
 				     const void *data, int len)
 {
 	int i, ret = 0, tlen;
-	int type, request_id;
+	int type;
 	int rem_len, rem_outer_len, rem_inner_len;
 	struct nlattr *pos, *outer_iter, *inner_iter;
 	struct wifi_ssid_hotlist_params *ssid_hotlist_params;
@@ -2679,7 +2673,6 @@ static int sprdwl_vendor_set_ssid_hotlist(struct wiphy *wiphy,
 
 		switch (type) {
 		case GSCAN_ATTR_SUBCMD_CONFIG_PARAM_REQUEST_ID:
-			request_id = nla_get_s32(pos);
 		break;
 
 		case GSCAN_ATTR_GSCAN_SSID_HOTLIST_PARAMS_LOST_SSID_SAMPLE_SIZE:
@@ -2785,7 +2778,7 @@ static int sprdwl_vendor_set_passpoint_list(struct wiphy *wiphy,
 	struct nlattr *HS_list;
 	struct sprdwl_vif *vif = netdev_priv(wdev->netdev);
 	struct wifi_passpoint_network *HS_list_params;
-	int i = 0, rem, flush, ret = 0, tlen, hs_num;
+	int i = 0, rem, flush, ret = 0, tlen;
 	struct sprdwl_cmd_gscan_rsp_header rsp;
 	u16 rlen = sizeof(struct sprdwl_cmd_gscan_rsp_header);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
@@ -2829,7 +2822,6 @@ static int sprdwl_vendor_set_passpoint_list(struct wiphy *wiphy,
 		goto out;
 	}
 
-	hs_num = nla_get_u32(tb[GSCAN_ANQPO_HS_LIST_SIZE]);
 
 	nla_for_each_nested(HS_list,
 			    tb[GSCAN_ANQPO_HS_LIST], rem) {

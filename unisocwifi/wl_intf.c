@@ -259,7 +259,6 @@ static void sprdwl_add_tx_list_head(struct list_head *tx_fail_list,
 			     int tx_count)
 {
 	struct sprdwl_msg_buf *msg_buf = NULL;
-	struct list_head *xmit_free_list;
 	struct list_head *head, *tail;
 	spinlock_t *lock;
 	spinlock_t *free_lock;
@@ -267,7 +266,6 @@ static void sprdwl_add_tx_list_head(struct list_head *tx_fail_list,
 	if (tx_fail_list == NULL)
 		return;
 	msg_buf = list_first_entry(tx_fail_list, struct sprdwl_msg_buf, list);
-	xmit_free_list = &msg_buf->xmit_msg_list->to_free_list;
 	free_lock = &msg_buf->xmit_msg_list->free_lock;
 	if (msg_buf->msg_type != SPRDWL_TYPE_DATA) {
 		lock = &msg_buf->msglist->busylock;

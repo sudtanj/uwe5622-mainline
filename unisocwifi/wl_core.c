@@ -240,7 +240,6 @@ void count_tdls_flow(struct sprdwl_vif *vif, u8 *data, u16 len)
 	u8 unit_time;
 	ktime_t kt;
 	struct sprdwl_intf *intf = (struct sprdwl_intf *)vif->priv->hw_priv;
-	int ret = 0;
 
 	for (i = 0; i < MAX_TDLS_PEER; i++) {
 		if ((intf->tdls_flow_count[i].valid == 1) &&
@@ -274,9 +273,9 @@ count_it:
 	    ((intf->tdls_flow_count[i].data_len_counted + len) >
 	     intf->tdls_flow_count[i].threshold * 1024 *
 	     ((unit_time == 0) ? 1 : unit_time)))) {
-		ret = sprdwl_send_tdls_cmd(vif, vif->ctx_id,
-					   (u8 *)intf->tdls_flow_count[i].da,
-					   SPRDWL_TDLS_CMD_CONNECT);
+		sprdwl_send_tdls_cmd(vif, vif->ctx_id,
+				     (u8 *)intf->tdls_flow_count[i].da,
+				     SPRDWL_TDLS_CMD_CONNECT);
 		memset(&intf->tdls_flow_count[i], 0,
 			       sizeof(struct tdls_flow_count_para));
 	} else {
@@ -348,11 +347,9 @@ static ssize_t sprdwl_intf_write(struct file *file,
 				 size_t count, loff_t *ppos)
 {
 	char buf[30];
-	struct sprdwl_intf *sdev;
 	int type = 0;
 	int debug_size = sizeof(debuginfo)/sizeof(struct debuginfo_s);
 
-	sdev = (struct sprdwl_intf *)file->private_data;
 
 	if (!count || count >= sizeof(buf)) {
 		wl_err("write len too long:%zu >= %zu\n", count, sizeof(buf));
@@ -484,10 +481,8 @@ static int sprdwl_ini_download_status(void)
 static void sprdwl_force_exit(void *spdev)
 {
 	struct sprdwl_intf *intf;
-	struct sprdwl_tx_msg *tx_msg;
 
 	intf = (struct sprdwl_intf *)spdev;
-	tx_msg = (struct sprdwl_tx_msg *)intf->sprdwl_tx;
 	intf->exit = 1;
 }
 
@@ -540,11 +535,9 @@ static void sprdwl_wifi_reset(void)
 {
 	struct sprdwl_intf *intf = NULL;
 	struct sprdwl_tx_msg *tx_msg = NULL;
-	struct sprdwl_rx_if *rx_if = NULL;
 
 	intf = (struct sprdwl_intf *)g_sprdwl_priv->hw_priv;
 	tx_msg = (void *)intf->sprdwl_tx;
-	rx_if = (struct sprdwl_rx_if *)intf->sprdwl_rx;
 
 	wl_err("cp2 reset begin..........\n");
 	g_sprdwl_priv->sync.scan_not_allowed = true;
