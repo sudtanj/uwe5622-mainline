@@ -46,8 +46,6 @@
 #include "mem_pd_mgr.h"
 #include "wcn_op.h"
 #include "wcn_parn_parser.h"
-#include "pcie_boot.h"
-#include "usb_boot.h"
 #include "rdc_debug.h"
 #include "wcn_dump.h"
 #include "wcn_misc.h"

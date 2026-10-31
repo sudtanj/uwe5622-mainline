@@ -1,6 +1,4 @@
-ifneq ($(CONFIG_AW_WIFI_DEVICE_UWE5622)$(CONFIG_RK_WIFI_DEVICE_UWE5622),)
-obj-y += unisocwcn/
-endif
+obj-$(CONFIG_AW_WIFI_DEVICE_UWE5622) += unisocwcn/
 obj-$(CONFIG_WLAN_UWE5622)    += unisocwifi/
 obj-$(CONFIG_TTY_OVERY_SDIO)  += tty-sdio/
 
