@@ -32,6 +32,89 @@ For that Allwinner variant the relevant compile-time switches in
 **off** for Allwinner: the driver does not read its own device-tree node; power
 and reset are handled by the kernel's `mmc-pwrseq-simple` from the DT.
 
+## Build map (Allwinner SDIO build)
+
+Derived from the Makefiles and Kconfig files for the selection used by
+`dkms.conf`, `scripts/build-against-kernel.sh` and CI:
+`CONFIG_AW_WIFI_DEVICE_UWE5622=y CONFIG_WLAN_UWE5622=m CONFIG_TTY_OVERY_SDIO=m`.
+Only the three top-level per-module Makefiles take part in the build; the
+per-subdirectory `Makefile`/`Kconfig` files that the vendor tree carried for an
+in-kernel build were never referenced (Kbuild only descends into a directory
+listed with `obj-y += dir/`, and `unisocwcn/Makefile` lists its objects
+directly).
+
+### `unisocwcn/` → `uwe5622_bsp_sdio.ko`
+
+Module name is `$(BSP_CHIP_ID)_bsp_$(WCN_HW_TYPE)` = `uwe5622_bsp_sdio`,
+built with `obj-m` (`CONFIG_WCN_BSP_DRIVER_BUILDIN` unset).
+
+Compiled objects (`$(MODULE_NAME)-y`, plus the `CONFIG_WCN_SWD` and
+`CONFIG_WCN_SDIO` lists, both of which are set):
+
+```
+wcn_bus.c
+platform/wcn_boot.c      platform/wcn_dump.c      platform/bufring.c
+platform/wcn_txrx.c      platform/wcn_op.c        platform/wcn_parn_parser.c
+platform/rdc_debug.c     platform/wcn_log.c       platform/wcn_misc.c
+platform/wcn_procfs.c    platform/loopcheck.c     platform/wcn_swd_dp.c
+platform/mem_pd_mgr.c
+sdio/sdiohal_main.c      sdio/sdiohal_common.c    sdio/sdiohal_tx.c
+sdio/sdiohal_rx.c        sdio/sdio_v3.c           sdio/sdiohal_ctl.c
+sleep/sdio_int.c         sleep/slp_mgr.c          sleep/slp_sdio.c
+sleep/slp_test.c
+```
+
+Preprocessor switches in effect (`ccflags-y`):
+
+| Defined | Source |
+|---|---|
+| `CONFIG_UWE5622` | Allwinner chip selection |
+| `CONFIG_WCN_SDIO`, `CONFIG_WCN_SLP`, `CONFIG_WCN_SWD` | from `CONFIG_WCN_SDIO=y` |
+| `CONFIG_WCN_BOOT`, `CONFIG_WCN_UTILS` | always |
+| `CONFIG_AW_BOARD`, `CONFIG_WCN_POWER_UP_DOWN`, `CONFIG_BT_WAKE_HOST_EN`, `CONFIG_WL_WAKE_HOST_EN`, `CONFIG_WCN_LOOPCHECK`, `CONFIG_SDIO_TX_ADMA_MODE`, `CONFIG_SDIO_RX_ADMA_MODE`, `CONFIG_SDIO_INBAND_INT` | Allwinner block |
+| `CONFIG_CUSTOMIZE_UNISOC_FW_PATH="/lib/firmware/uwe5622/"` | top-level Makefile |
+| `-fno-pic -D__linux__`, `-I include -I platform -I platform/rf -I ../tty-sdio` | always |
+
+Deliberately **not** defined (commented out or belonging to other customers):
+`CONFIG_WCN_PARSE_DTS`, `CONFIG_CHECK_DRIVER_BY_CHIPID`, `CONFIG_UWE5621`,
+`CONFIG_UWE5623`, `CONFIG_WCN_USB`, `CONFIG_WCN_PCIE`, `CONFIG_WCN_SIPC`,
+`CONFIG_WCN_GNSS`, `CONFIG_SC2342_INTEG`, `CONFIG_UMW2653`,
+`CONFIG_HISI_BOARD`, `CONFIG_AML_BOARD`, `CONFIG_RK_BOARD`,
+`CONFIG_WCN_DOWNLOAD_FIRMWARE_FROM_HEX`, `CONFIG_WCN_PMIC`, `CONFIG_MEM_PD`,
+`CONFIG_WCN_RESUME_POWER_DOWN`, `CONFIG_WCN_RESUME_KEEPPWR_RESETSDIO`,
+`CONFIG_WCN_CHECK_MODULE_VENDOR`, `CONFIG_CPLOG_DEBUG`,
+`CONFIG_SDIO_INBAND_POLLING`, `CONFIG_SDIO_BLKSIZE_512`, `CONFIG_SDIO_PWRSEQ`,
+`CONFIG_WCND`, `CONFIG_WCN_FM`, `CONFIG_SDIOM`. Note that Kconfig symbols such
+as `CONFIG_AW_BIND_VERIFY` or `CONFIG_RK_WIFI_DEVICE_UWE5622` are *make*
+variables in this out-of-tree build and never reach the preprocessor, so
+`IS_ENABLED()` tests on them are false.
+
+### `unisocwifi/` → `sprdwl_ng.ko`
+
+All objects listed in `sprdwl_ng-objs` are compiled:
+
+```
+main.c cfg80211.c txrx.c cmdevt.c npi.c msg.c work.c vendor.c tcp_ack.c mm.c
+reorder.c wl_core.c tx_msg.c rx_msg.c wl_intf.c qos.c dbg_ini_util.c
+reg_domain.c defrag.c ibss.c nan.c tracer.c rf_marlin3.c rtt.c api_version.c
+rnd_mac_addr.c debug.c
+```
+
+Not compiled: `11h.c` (commented out), `edma_test.c`, `softap_hook.c`.
+
+Switches: `IBSS_SUPPORT IBSS_RSN_SUPPORT NAN_SUPPORT RTT_SUPPORT ACS_SUPPORT
+RX_HW_CSUM WMMAC_WFA_CERTIFICATION COMPAT_SAMPILE_CODE RND_MAC_SUPPORT
+ATCMD_ASSERT TCPACK_DELAY_SUPPORT SPLIT_STACK OTT_UWE CP2_RESET_SUPPORT`,
+include paths `../unisocwcn/include`. Not set: `WL_CONFIG_DEBUG`
+(`DEBUGMODE`), `STA_SOFTAP_SCC_MODE`, `UNISOC_WIFI_PS`,
+`CUSTOMIZE_WIFI_CFG_PATH`, `CUSTOMIZE_WIFI_MAC_FILE`, `DFS_MASTER`.
+
+### `tty-sdio/` → `sprdbt_tty.ko`
+
+All six objects are compiled: `tty.c rfkill.c lpm.c woble.c alignment/sitm.c
+dump.c`. Switches: `OTT_UWE WOBLE_FUN`; include path `../unisocwcn/include`.
+Not set: `DEBUG`, `KERNEL_VERSION_414`.
+
 ### Code that is dead for this board
 
 A large share of the tree is for other customers of the vendor BSP and is
