@@ -62,26 +62,59 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu flex bison libssl-dev libelf-dev bc sparse kmod
+            gcc-aarch64-linux-gnu flex bison libssl-dev libelf-dev bc kmod
+
+      # Kernel 7.x refuses the distro's sparse (it predates __typeof_unqual__
+      # and scripts/checker-valid.sh rejects it), which would silently turn
+      # C=1 into a no-op. Build the current upstream sparse instead.
+      - name: Build sparse from kernel.org
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://git.kernel.org/pub/scm/devel/sparse/sparse.git "$RUNNER_TEMP/sparse"
+          make -C "$RUNNER_TEMP/sparse" -j"$(nproc)" sparse >/dev/null
+          sudo install -m 0755 "$RUNNER_TEMP/sparse/sparse" /usr/local/bin/sparse
+          sparse --version
 
       - name: Build modules and overlay
         env:
           KERNEL_URL: ${{ matrix.url }}
         run: scripts/build-against-kernel.sh "${{ matrix.version }}" "$RUNNER_TEMP/kbuild"
 
-      # Informational for now: the imported vendor code has many warnings.
-      # Tracked in the log so the rewrite can drive the count to zero.
+      # Gate: every W=1 and sparse warning must be in .github/known-warnings.txt
+      # (one regex per line, see the comments there). A new kernel release that
+      # introduces a warning fails the weekly run, which is the point.
       - name: Extra warnings and sparse
-        continue-on-error: true
         run: |
+          set -uo pipefail
           make -C "$RUNNER_TEMP/kbuild/linux-${{ matrix.version }}" M="$PWD" \
             CONFIG_AW_WIFI_DEVICE_UWE5622=y CONFIG_WLAN_UWE5622=m CONFIG_TTY_OVERY_SDIO=m clean >/dev/null
           WARN=1 SPARSE=1 DTS=0 scripts/build-against-kernel.sh "${{ matrix.version }}" "$RUNNER_TEMP/kbuild" 2>&1 \
             | tee "$RUNNER_TEMP/warnings.log" >/dev/null
-          echo "warnings: $(grep -c -E 'warning:' "$RUNNER_TEMP/warnings.log" || true)"
-          echo "sparse:   $(grep -c -E '(warning|error):.*(sparse|context|address space|incorrect type)' "$RUNNER_TEMP/warnings.log" || true)"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::error::W=1 C=1 build failed (exit $status)"
+            tail -n 50 "$RUNNER_TEMP/warnings.log"
+            exit "$status"
+          fi
+          if grep -q "sparse is not available or not up to date" "$RUNNER_TEMP/warnings.log"; then
+            echo "::error::sparse did not run; the C=1 pass is meaningless"
+            exit 1
+          fi
+          grep -E '(warning|error):' "$RUNNER_TEMP/warnings.log" \
+            | sed -E "s#^$PWD/##" | sort -u > "$RUNNER_TEMP/warnings.txt" || true
+          grep -vE '^\s*(#|$)' .github/known-warnings.txt > "$RUNNER_TEMP/known.txt"
+          grep -vE -f "$RUNNER_TEMP/known.txt" "$RUNNER_TEMP/warnings.txt" > "$RUNNER_TEMP/unexpected.txt" || true
+          total=$(wc -l < "$RUNNER_TEMP/warnings.txt")
+          unexpected=$(wc -l < "$RUNNER_TEMP/unexpected.txt")
+          echo "warnings (unique): $total, of which not in known-warnings.txt: $unexpected"
+          echo "sparse-only:       $(grep -cvE '\[-W' "$RUNNER_TEMP/warnings.txt" || true)"
+          if [ "$unexpected" -ne 0 ]; then
+            while IFS= read -r line; do echo "::error::$line"; done < "$RUNNER_TEMP/unexpected.txt"
+            exit 1
+          fi
 
       - name: Upload modules
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: modules-linux-${{ matrix.version }}

@@ -1,0 +1,23 @@
+# W=1 and sparse warnings that CI accepts for now.
+#
+# Everything in this list needs a logic change to fix, so it is left for
+# Phase 2 (see "Known issues for Phase 2" in docs/ARCHITECTURE.md). Any
+# warning not matched here fails the "Extra warnings and sparse" CI step.
+#
+# One POSIX extended regex per line, matched against the warning line with
+# the checkout directory stripped. Line/column numbers are wildcarded so
+# unrelated edits do not invalidate an entry.
+
+# kstrtol() is __must_check and its result is never looked at; checking it
+# changes what a malformed procfs write does.
+^unisocwcn/platform/wcn_procfs.c:[0-9]+:[0-9]+: warning: variable .ret. set but not used \[-Wunused-but-set-variable\]$
+
+# eth->h_proto (network order) is compared with host-order ETH_P_IP /
+# ETH_P_IPV6, so the test is always true on little-endian; the fix changes
+# which broadcast frames are looped back in AP mode.
+^unisocwifi/txrx.c:[0-9]+:[0-9]+: warning: restricted __be16 degrades to integer$
+
+# Firmware protocol structs with a flexible array of structs that themselves
+# end in a flexible array; needs the accessors rewritten.
+^unisocwifi/rx_msg.h:[0-9]+:[0-9]+: warning: array of flexible structures$
+^unisocwifi/vendor.h:[0-9]+:[0-9]+: warning: array of flexible structures$
