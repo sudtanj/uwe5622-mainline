@@ -504,9 +504,9 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	char x;
+	int ret;
 #ifdef MDBG_PROC_CMD_DEBUG
 	char *tempbuf = NULL;
-	int ret;
 	int i;
 #endif
 
