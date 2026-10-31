@@ -1266,7 +1266,7 @@ static int sprdwl_cfg80211_get_station(struct wiphy *wiphy,
 	sinfo->signal = sta.signal;
 	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 
-	sinfo->tx_failed = sta.txfailed;
+	sinfo->tx_failed = le32_to_cpu(sta.txfailed);
 	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE) |
 		BIT(NL80211_STA_INFO_TX_FAILED);
 
@@ -1413,7 +1413,7 @@ static int sprdwl_cfg80211_get_station(struct wiphy *wiphy,
 	sinfo->signal = sta.signal;
 	sinfo->filled |= STATION_INFO_SIGNAL;
 
-	sinfo->tx_failed = sta.txfailed;
+	sinfo->tx_failed = le32_to_cpu(sta.txfailed);
 	sinfo->filled |= STATION_INFO_TX_BITRATE | STATION_INFO_TX_FAILED;
 
 	/*fill rate info */

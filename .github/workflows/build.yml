@@ -142,9 +142,9 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/cp"
           base=https://raw.githubusercontent.com/torvalds/linux/master/scripts
-          curl -fsSL "$base/checkpatch.pl" -o "$RUNNER_TEMP/cp/checkpatch.pl"
-          curl -fsSL "$base/spelling.txt" -o "$RUNNER_TEMP/cp/spelling.txt"
-          curl -fsSL "$base/const_structs.checkpatch" -o "$RUNNER_TEMP/cp/const_structs.checkpatch"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 "$base/checkpatch.pl" -o "$RUNNER_TEMP/cp/checkpatch.pl"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 "$base/spelling.txt" -o "$RUNNER_TEMP/cp/spelling.txt"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 "$base/const_structs.checkpatch" -o "$RUNNER_TEMP/cp/const_structs.checkpatch"
           chmod +x "$RUNNER_TEMP/cp/checkpatch.pl"
       - name: Run on the diff
         run: |

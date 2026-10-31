@@ -1418,7 +1418,11 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	}
 #endif
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+	marlin_dev->chip_en = NULL;
+#else
 	marlin_dev->chip_en = 0;
+#endif
 #endif
 
 #ifdef CONFIG_WCN_PARSE_DTS
@@ -1451,7 +1455,11 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	}
 #endif
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+	marlin_dev->reset = NULL;
+#else
 	marlin_dev->reset = 0;
+#endif
 #endif
 
 #ifdef CONFIG_WCN_PARSE_DTS
@@ -1484,7 +1492,11 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	}
 #endif
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
+	marlin_dev->int_ap = NULL;
+#else
 	marlin_dev->int_ap = 0;
+#endif
 #endif
 
 #ifdef CONFIG_WCN_PARSE_DTS
