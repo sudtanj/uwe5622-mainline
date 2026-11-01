@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/ip.h>

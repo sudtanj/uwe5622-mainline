@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>

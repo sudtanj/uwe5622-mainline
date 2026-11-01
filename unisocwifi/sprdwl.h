@@ -317,36 +317,47 @@ enum sprdwl_debug {
 
 extern int sprdwl_debug_level;
 extern struct device *sprdwl_dev;
-#define wl_debug(fmt, args...) \
-	do { \
-		if (sprdwl_debug_level >= L_DBG) { \
-			pr_err("sprdwl:" fmt, ##args); \
-		} \
-	} while (0)
 
-#define wl_err(fmt, args...) \
+/*
+ * Logging. Every file of the module defines pr_fmt() as "sprdwl:" fmt.
+ * Messages are gated at run time by sprdwl_debug_level (enum sprdwl_debug,
+ * default L_ERR), which is set by the "debug_level" module parameter
+ * (/sys/module/sprdwl_ng/parameters/debug_level), the log_level key of
+ * wifi_dbg.ini and "debug_level=N" written to
+ * /sys/kernel/debug/sprdwl_debug/log_level. While the level is below
+ * L_DBG, wl_debug() messages can still be enabled per call site through
+ * dynamic debug.
+ */
+#define wl_err(fmt, ...) \
 	do { \
 		if (sprdwl_debug_level >= L_ERR) \
-			pr_err("sprdwl:" fmt, ##args); \
+			pr_err(fmt, ##__VA_ARGS__); \
 	} while (0)
 
-#define wl_warn(fmt, args...) \
+#define wl_warn(fmt, ...) \
 	do { \
 		if (sprdwl_debug_level >= L_WARN) \
-			pr_err("sprdwl:" fmt, ##args); \
+			pr_warn(fmt, ##__VA_ARGS__); \
 	} while (0)
 
-#define wl_info(fmt, args...) \
+#define wl_info(fmt, ...) \
 	do { \
-		if (sprdwl_debug_level >= L_INFO) { \
-			pr_err("sprdwl:" fmt, ##args); \
-		} \
+		if (sprdwl_debug_level >= L_INFO) \
+			pr_info(fmt, ##__VA_ARGS__); \
 	} while (0)
 
-#define wl_err_ratelimited(fmt, args...) \
+#define wl_debug(fmt, ...) \
+	do { \
+		if (sprdwl_debug_level >= L_DBG) \
+			pr_info(fmt, ##__VA_ARGS__); \
+		else \
+			pr_debug(fmt, ##__VA_ARGS__); \
+	} while (0)
+
+#define wl_err_ratelimited(fmt, ...) \
 	do { \
 		if (sprdwl_debug_level >= L_ERR) \
-			printk_ratelimited("sprdwl:" fmt, ##args); \
+			pr_err_ratelimited(fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define wl_ndev_log(level, ndev, fmt, args...) \
@@ -361,12 +372,6 @@ extern struct device *sprdwl_dev;
 		if (sprdwl_debug_level >= level) { \
 			print_hex_dump(KERN_ERR, _str, _type, _row, _gp, _buf, _len, _ascii); \
 		} \
-	} while (0)
-
-#define wl_err_ratelimited(fmt, args...) \
-	do { \
-		if (sprdwl_debug_level >= L_ERR) \
-			printk_ratelimited("sprdwl:" fmt, ##args); \
 	} while (0)
 
 #ifdef ACS_SUPPORT

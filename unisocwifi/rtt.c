@@ -16,6 +16,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include <linux/etherdevice.h>
 #include <net/cfg80211.h>
 #include <net/netlink.h>

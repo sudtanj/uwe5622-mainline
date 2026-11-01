@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "reg_domain.h"
 #include "sprdwl.h"
 #include "wl_intf.h"

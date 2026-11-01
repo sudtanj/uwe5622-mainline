@@ -14,6 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "version.h"
 #include <net/cfg80211.h>
 #include "sprdwl.h"

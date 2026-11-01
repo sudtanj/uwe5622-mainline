@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/device.h>

@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include <linux/etherdevice.h>
 #include <linux/ipv6.h>
 #include <linux/ip.h>

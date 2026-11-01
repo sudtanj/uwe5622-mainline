@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "sprdwl.h"
 #include "npi.h"
 #include "cfg80211.h"

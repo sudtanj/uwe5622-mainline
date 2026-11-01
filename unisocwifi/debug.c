@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "debug.h"
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>

@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "rnd_mac_addr.h"
 
 u8 rand_addr[ETH_ALEN];

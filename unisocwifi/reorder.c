@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "sprdwl:" fmt
+
 #include "reorder.h"
 #include "rx_msg.h"
 #include "work.h"
