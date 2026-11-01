@@ -383,13 +383,14 @@ change):
 
 ## Syncing with Armbian
 
-Armbian's repository stays the source of fixes until Phase 1 lands. To pull its
-changes:
+Phase 1 removed and reformatted much of the tree, so merging Armbian's
+repository now conflicts. Check its new commits and port the fixes that touch
+code still here by hand (or `git cherry-pick` and resolve):
 
 ```sh
 git remote add armbian https://github.com/armbian/uwe5622
 git fetch armbian
-git merge armbian/master
+git log --oneline HEAD..armbian/master
 ```
 
 After Phase 1 the trees diverge too much to merge; fixes get cherry-picked by

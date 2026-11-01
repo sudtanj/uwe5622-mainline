@@ -80,7 +80,7 @@ also builds with `W=1` and `sparse` and fails on any warning not listed in
 
 ```sh
 git remote add armbian https://github.com/armbian/uwe5622
-git fetch armbian && git merge armbian/master
+git fetch armbian && git log --oneline HEAD..armbian/master   # port fixes by hand; see docs/ARCHITECTURE.md
 ```
 
 ## License
