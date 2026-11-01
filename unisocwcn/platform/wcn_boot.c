@@ -380,8 +380,6 @@ unsigned int marlin_get_wcn_chipid(void)
 	if (likely(chip_id))
 		return chip_id;
 
-	pr_debug("%s enter.\n", __func__);
-
 	ret = sprdwcn_bus_reg_read(CHIPID_REG, &chip_id, 4);
 	if (ret < 0) {
 		pr_err("marlin read chip ID fail, ret=%d\n", ret);
@@ -649,7 +647,7 @@ static int marlin_tsx_cali_data_read(struct tsx_data *p_tsx_data)
 		pr_err("open file error\n");
 		return -1;
 	}
-	pr_info("open image "WCN_AFC_CALI_PATH" successfully\n");
+	pr_info("open image " WCN_AFC_CALI_PATH " successfully\n");
 
 	/* read file to buffer */
 	size = sizeof(struct tsx_data);
@@ -803,7 +801,6 @@ static char *load_firmware_data_path(const char *path, loff_t offset,
 	char *data = NULL;
 	struct file *file;
 
-	pr_debug("%s Enter\n", __func__);
 	file = wcn_filp_open(path, O_RDONLY, 0);
 	for (i = 1; i <= opn_num_max; i++) {
 		if (IS_ERR(file)) {
@@ -819,7 +816,7 @@ static char *load_firmware_data_path(const char *path, loff_t offset,
 		       __func__, path);
 		return NULL;
 	}
-	pr_debug("marlin %s open image file sucessfully\n",
+	pr_debug("marlin %s open image file successfully\n",
 		 __func__);
 	size = imag_size;
 	buffer = vmalloc(size);
@@ -1135,7 +1132,6 @@ static char *gnss_load_firmware_data(unsigned long int imag_size)
 {
 	char *buf;
 
-	pr_debug("%s entry\n", __func__);
 	if (gnss_ops && (gnss_ops->set_file_path))
 		gnss_ops->set_file_path(&GNSS_FIRMWARE_PATH[0]);
 	else
@@ -1709,7 +1705,7 @@ static int marlin_digital_power_enable(bool enable)
 
 	return ret;
 
-	pr_info("marlin_digital_power_enable D1v2 %d\n", enable);
+	pr_info("%s D1v2 %d\n", __func__, enable);
 	if (marlin_dev->dvdd12 == NULL)
 		return 0;
 
@@ -1734,7 +1730,7 @@ static int marlin_analog_power_enable(bool enable)
 
 	if (marlin_dev->avdd12 != NULL) {
 		msleep(20);
-		pr_info("marlin_analog_power_enable 1v2 %d\n", enable);
+		pr_info("%s 1v2 %d\n", __func__, enable);
 		if (enable) {
 			regulator_set_voltage(marlin_dev->avdd12,
 			1200000, 1200000);
@@ -2034,7 +2030,7 @@ static int marlin_write_cali_data(void)
 			}
 
 			i = 0;
-			pr_info("marlin_write_cali_data finish\n");
+			pr_info("%s finish\n", __func__);
 			return ret;
 		}
 
@@ -2087,8 +2083,6 @@ static int check_cp_clock_mode(void)
 	int ret = 0;
 	unsigned int temp_val;
 
-	pr_debug("%s\n", __func__);
-
 	ret = spi_read_rf_reg(AD_DCXO_BONDING_OPT, &temp_val);
 	if (ret < 0) {
 		pr_err("read AD_DCXO_BONDING_OPT error:%d\n", ret);
@@ -2110,8 +2104,6 @@ static int marlin_start_run(void)
 {
 	int ret = 0;
 	unsigned int ss_val;
-
-	pr_debug("marlin_start_run\n");
 
 	marlin_tsx_cali_data_get();
 #ifdef CONFIG_WCN_SLP
@@ -2215,16 +2207,14 @@ static int marlin_bind_verify(void)
 
 	/*transform confuse data to verify data*/
 	memcpy(din, &marlin_dev->sync_f.bind_verify_data[0], 16);
-	pr_info("%s confuse data: 0x%02x%02x%02x%02x%02x%02x%02x%02x"
-		"%02x%02x%02x%02x%02x%02x%02x%02x\n", __func__,
-		din[0], din[1], din[2], din[3],
+	pr_info("%s confuse data: 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		__func__, din[0], din[1], din[2], din[3],
 		din[4], din[5], din[6], din[7],
 		din[8], din[9], din[10], din[11],
 		din[12], din[13], din[14], din[15]);
 	wcn_bind_verify_calculate_verify_data(din, dout);
-	pr_info("%s verify data: 0x%02x%02x%02x%02x%02x%02x%02x%02x"
-		"%02x%02x%02x%02x%02x%02x%02x%02x\n", __func__,
-		dout[0], dout[1], dout[2], dout[3],
+	pr_info("%s verify data: 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		__func__, dout[0], dout[1], dout[2], dout[3],
 		dout[4], dout[5], dout[6], dout[7],
 		dout[8], dout[9], dout[10], dout[11],
 		dout[12], dout[13], dout[14], dout[15]);
@@ -2388,13 +2378,13 @@ void marlin_chip_en(bool enable, bool reset)
 	if (enable) {
 		if (chip_en_count == 0) {
 			msleep(100);
-			pr_info("marlin chip en dummy pull up -- need manually set GPIO \n");
+			pr_info("marlin chip en dummy pull up -- need manually set GPIO\n");
 		}
 		chip_en_count++;
 	} else {
 		chip_en_count--;
 		if (chip_en_count == 0) {
-			pr_info("marlin chip en dummy pull down -- need manually set GPIO \n");
+			pr_info("marlin chip en dummy pull down -- need manually set GPIO\n");
 		}
 	}
 	return;
@@ -2601,7 +2591,7 @@ static void power_state_notify_or_not(int subsys, int poweron)
 
 static int marlin_scan_finish(void)
 {
-	pr_info("marlin_scan_finish!\n");
+	pr_info("%s!\n", __func__);
 	complete(&marlin_dev->carddetect_done);
 	return 0;
 }
@@ -2784,8 +2774,6 @@ static void set_wifipa_status(int subsys, int val)
  */
 int chip_power_on(int subsys)
 {
-	pr_debug("%s\n", __func__);
-
 	/* may be we can call reinit_completion api */
 	init_completion(&marlin_dev->carddetect_done);
 	marlin_avdd18_dcxo_enable(true);
@@ -3261,7 +3249,7 @@ int cali_ini_need_download(enum marlin_sub_sys subsys)
 	pd_wifi_st = mem_pd_wifi_state();
 #endif
 	if ((marlin_dev->wifi_need_download_ini_flag == 1) || pd_wifi_st) {
-		pr_info("cali_ini_need_download return 1\n");
+		pr_info("%s return 1\n", __func__);
 		return 1;	/* the first */
 	}
 	return 0;	/* not the first */
@@ -3405,7 +3393,7 @@ static int marlin_probe(struct platform_device *pdev)
 			PACKET_SIZE, GFP_KERNEL);
 	if (marlin_dev->write_buffer == NULL) {
 		devm_kfree(&pdev->dev, marlin_dev);
-		pr_err("marlin_probe write buffer low memory\n");
+		pr_err("%s write buffer low memory\n", __func__);
 		return -ENOMEM;
 	}
 	mutex_init(&(marlin_dev->power_lock));
@@ -3465,7 +3453,7 @@ static int marlin_probe(struct platform_device *pdev)
 #endif
 
 
-	pr_info("marlin_probe ok!\n");
+	pr_info("%s ok!\n", __func__);
 
 	return 0;
 }
@@ -3513,7 +3501,7 @@ static int marlin_remove(struct platform_device *pdev)
 	devm_kfree(&pdev->dev, marlin_dev->write_buffer);
 	devm_kfree(&pdev->dev, marlin_dev);
 
-	pr_info("marlin_remove ok!\n");
+	pr_info("%s ok!\n", __func__);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0)
 	return 0;
@@ -3536,7 +3524,7 @@ static void marlin_shutdown(struct platform_device *pdev)
 		marlin_chip_en(false, false);
 	}
 
-	pr_info("marlin_shutdown end\n");
+	pr_info("%s end\n", __func__);
 }
 
 static int marlin_suspend(struct device *dev)
@@ -3658,7 +3646,7 @@ static struct platform_device uwe_device = {
 
 static int __init marlin_init(void)
 {
-	pr_info("marlin_init entry!\n");
+	pr_info("%s entry!\n", __func__);
 
 #ifndef CONFIG_WCN_PARSE_DTS
 	platform_device_register(&uwe_device);
@@ -3673,14 +3661,14 @@ module_init(marlin_init);
 
 static void __exit marlin_exit(void)
 {
-	pr_info("marlin_exit entry!\n");
+	pr_info("%s entry!\n", __func__);
 
 #ifndef CONFIG_WCN_PARSE_DTS
 	platform_device_unregister(&uwe_device);
 #endif
 	platform_driver_unregister(&marlin_driver);
 
-	pr_info("marlin_exit end!\n");
+	pr_info("%s end!\n", __func__);
 }
 module_exit(marlin_exit);
 

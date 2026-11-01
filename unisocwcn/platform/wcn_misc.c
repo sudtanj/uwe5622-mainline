@@ -60,7 +60,7 @@ enum atcmd_owner mdbg_atcmd_owner_peek(void)
 	s_atcmd_owner.head++;
 	mutex_unlock(&s_atcmd_owner.lock);
 
-	pr_debug("owner=%d, head=%d\n", owner, s_atcmd_owner.head-1);
+	pr_debug("owner=%d, head=%d\n", owner, s_atcmd_owner.head - 1);
 	return owner;
 }
 

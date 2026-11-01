@@ -59,14 +59,14 @@ static int wcnlog_open(struct inode *inode, struct file *filp)
 	pr_info("minor=%d,minor1=%d,major=%d\n", minor, minor1, major);
 
 	if (mdbg_dev->exit_flag) {
-		pr_info("wcnlog_open exit!\n");
+		pr_info("%s exit!\n", __func__);
 		return -EIO;
 	}
 
 	dev = container_of(inode->i_cdev, struct wcnlog_dev, cdev);
 	filp->private_data = dev;
 
-	pr_debug("wcnlog_open z=%d,major=%d,minor = %d\n",
+	pr_debug("%s z=%d,major=%d,minor = %d\n", __func__,
 		dev->cdev.dev, MAJOR(dev->cdev.dev), MINOR(dev->cdev.dev));
 
 	if (mdbg_dev->open_count != 0)
@@ -81,7 +81,7 @@ static int wcnlog_release(struct inode *inode, struct file *filp)
 {
 	struct wcnlog_dev *dev = filp->private_data;
 
-	pr_info("wcnlog_release z=%d,major=%d,minor = %d\n",
+	pr_info("%s z=%d,major=%d,minor = %d\n", __func__,
 		dev->cdev.dev, MAJOR(dev->cdev.dev), MINOR(dev->cdev.dev));
 	mdbg_dev->open_count--;
 
@@ -98,20 +98,20 @@ static ssize_t wcnlog_read(struct file *filp,
 	struct wcnlog_dev *dev = filp->private_data;
 
 	if (mdbg_dev->exit_flag) {
-		pr_info("wcnlog_read exit!\n");
+		pr_info("%s exit!\n", __func__);
 		return -EIO;
 	}
 
 	if (filp->f_flags & O_NONBLOCK)
 		timeout = 0;
 
-	pr_debug("wcnlog_read timeout=%d,major=%d, minor=%d\n",
+	pr_debug("%s timeout=%d,major=%d, minor=%d\n", __func__,
 		timeout, dev->major, dev->minor);
 
-	pr_debug("wcnlog_read z=%d,major=%d,minor = %d\n", dev->cdev.dev,
+	pr_debug("%s z=%d,major=%d,minor = %d\n", __func__, dev->cdev.dev,
 		MAJOR(dev->cdev.dev), MINOR(dev->cdev.dev));
 	/* count :100K-log, 32K-mem ;cat :4096 */
-	pr_debug("wcnlog_read len = %ld\n", (long int)count);
+	pr_debug("%s len = %ld\n", __func__, (long)count);
 	if ((functionmask[7] & CP2_FLAG_YLOG) == 1)
 		return -EIO;
 
@@ -135,7 +135,7 @@ static ssize_t wcnlog_read(struct file *filp,
 	}
 
 	mutex_lock(&mdbg_dev->mdbg_lock);
-	read_size = mdbg_receive((void __force *)buf, (long int)count);
+	read_size = mdbg_receive((void __force *)buf, (long)count);
 	if (sprdwcn_bus_get_carddump_status() == 1) {
 		dum_send_size += read_size;
 		pr_info("read_size = %ld dum_total_size= %d,remainder =%ld\n",
@@ -164,11 +164,11 @@ static ssize_t wcnlog_write(struct file *filp,
 	char *p_data = NULL;
 
 	if (mdbg_dev->exit_flag) {
-		pr_info("wcnlog_write exit!\n");
+		pr_info("%s exit!\n", __func__);
 		return -EIO;
 	}
 
-	pr_info("wcnlog_write count=%ld\n", (long int)count);
+	pr_info("%s count=%ld\n", __func__, (long)count);
 	if (count > MDBG_WRITE_SIZE) {
 		pr_err("mdbg_write count > MDBG_WRITE_SIZE\n");
 		return -ENOMEM;
@@ -194,9 +194,8 @@ static __poll_t wcnlog_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask = 0;
 
-	pr_debug("wcnlog_poll\n");
 	if ((!mdbg_dev) || (mdbg_dev->exit_flag)) {
-		pr_info("wcnlog_poll exit!\n");
+		pr_info("%s exit!\n", __func__);
 		mask |= EPOLLIN | EPOLLERR;
 		return mask;
 	}
@@ -210,7 +209,7 @@ static __poll_t wcnlog_poll(struct file *filp, poll_table *wait)
 static long wcnlog_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	if (mdbg_dev->exit_flag) {
-		pr_info("wcnlog_ioctl exit!\n");
+		pr_info("%s exit!\n", __func__);
 		return -EIO;
 	}
 
@@ -261,7 +260,6 @@ int log_cdev_init(void)
 
 	struct wcnlog_dev *dev[WCN_LOG_MAX_MINOR] = {NULL};
 
-	pr_debug("log_cdev_init\n");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
 	wcnlog_class = class_create("slog_wcn");
 #else
@@ -315,7 +313,7 @@ int log_cdev_exit(void)
 	struct wcnlog_dev *dev[WCN_LOG_MAX_MINOR];
 	int i;
 
-	pr_info("log_cdev_exit\n");
+	pr_info("%s\n", __func__);
 
 	for (i = 0; i < WCN_LOG_MAX_MINOR; i++) {
 		dev[i] = mdbg_dev->dev[i];

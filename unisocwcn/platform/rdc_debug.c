@@ -114,7 +114,7 @@ static int wcn_find_cp2_file_num(char *path, loff_t *pos)
 			sprintf(wcn_cp2_file_path, path, i);
 			fp_size = wcn_filp_open(wcn_cp2_file_path, O_RDONLY, 0);
 			if (IS_ERR(fp_size)) {
-				pr_info("%s: Error, config file not found. want config file:%s \n",
+				pr_info("%s: Error, config file not found. want config file:%s\n",
 					__func__, wcn_cp2_file_path);
 				break;
 			}
@@ -185,7 +185,6 @@ int log_rx_callback(void *addr, unsigned int len)
 	struct file *filp;
 	static int retry;
 
-	pr_debug("log_rx_callback\n");
 	if ((debug_inited == 0) && (debug_user_inited == 0))
 		return 0;
 
@@ -218,8 +217,7 @@ retry:
 		if (PTR_ERR(filp) == -EACCES)
 			pr_err("%s: Permission denied.\n", __func__);
 		else if (PTR_ERR(filp) == -ENOMEM)
-			pr_err("%s: no memory in system,"
-			       "please delete old log file.\n",
+			pr_err("%s: no memory in system,please delete old log file.\n",
 			       __func__);
 		return PTR_ERR(filp);
 	}
@@ -288,7 +286,7 @@ int dumpmem_rx_callback(void *addr, unsigned int len)
 	static int first_time_open = 1;
 	static int retry;
 
-	pr_info("dumpmem_rx_callback\n");
+	pr_info("%s\n", __func__);
 
 	if (retry > WCN_DEBUG_RETRY_TIMES)
 		return 0;
@@ -459,7 +457,7 @@ static void wcn_config_log_file(void)
 		fp_size = wcn_filp_open(wcn_cp2_config_path[index],
 					 O_RDONLY, 0);
 		if (IS_ERR(fp_size)) {
-			pr_info("%s: Error, config file not found. want config file:%s \n",
+			pr_info("%s: Error, config file not found. want config file:%s\n",
 				__func__, wcn_cp2_config_path[index]);
 		}
 		else {
@@ -478,7 +476,7 @@ static void wcn_config_log_file(void)
 
 	buf = kzalloc(config_size+1, GFP_KERNEL);
 	if (!buf) {
-		pr_err("%s:no more space[%d]!\n", __func__, config_size+1);
+		pr_err("%s:no more space[%d]!\n", __func__, config_size + 1);
 		return;
 	}
 	buf_end = buf + config_size;
@@ -587,14 +585,11 @@ int wcn_debug_init(void)
 	int ret = 0;
 	unsigned char i;
 
-	pr_debug("%s entry\n", __func__);
-
 	/* config cp2 log if there is a config file.*/
 	if (config_inited == 0) {
 		wcn_config_log_file();
 		config_inited = 1;
-		pr_info("%s unisoc cp2 log: limit_size:[%d Byte], "
-			"log_file_num:[%d], cover_old:[%d-%s]\n",
+		pr_info("%s unisoc cp2 log: limit_size:[%d Byte], log_file_num:[%d], cover_old:[%d-%s]\n",
 			__func__, wcn_cp2_log_limit_size,
 			wcn_cp2_file_max_num,
 			wcn_cp2_log_cover_old,

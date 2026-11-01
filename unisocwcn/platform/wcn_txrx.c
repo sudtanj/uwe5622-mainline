@@ -274,7 +274,7 @@ int mdbg_ring_init(void)
 	INIT_WORK(&ring_dev->rx_task, mdbg_ring_rx_task);
 	ring_dev->flag_smp = 0;
 	mdbg_pt_ring_reg();
-	pr_debug("mdbg_ring_init success!\n");
+	pr_debug("%s success!\n", __func__);
 
 	mdbg_dev->ring_dev = ring_dev;
 

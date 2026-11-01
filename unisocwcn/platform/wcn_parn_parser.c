@@ -215,7 +215,7 @@ int parse_firmware_path(char *firmware_path)
 	/* for yunos */
 	ret = load_fstab_conf(ETC_FSTAB, firmware_path);
 	if (!ret) {
-		pr_info(ETC_FSTAB":%s !\n", firmware_path);
+		pr_info(ETC_FSTAB ":%s !\n", firmware_path);
 		return 0;
 	}
 

@@ -109,8 +109,6 @@ int get_board_ant_num(void)
 	unsigned char *at_cmd_buf;
 	unsigned char ret;
 
-	pr_debug("%s entry!\n", __func__);
-
 	/* 1. uwe5621 module on RK board(rk3368):
 	 * Antenna num is fixed to one.
 	 */
@@ -208,7 +206,6 @@ void complete_kernel_atcmd(void)
 int loopcheck_init(void)
 {
 #ifdef CONFIG_WCN_LOOPCHECK
-	pr_debug("loopcheck_init\n");
 	loopcheck.status = 0;
 	init_completion(&loopcheck.completion);
 	loopcheck.workqueue =

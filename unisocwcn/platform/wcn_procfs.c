@@ -89,7 +89,7 @@ void mdbg_assert_interface(char *str)
 
 	memset(mdbg_proc->assert.buf, 0, MDBG_ASSERT_SIZE);
 	memcpy(mdbg_proc->assert.buf, str, len);
-	pr_info("mdbg_assert_interface:%s\n",
+	pr_info("%s:%s\n", __func__,
 		(char *)(mdbg_proc->assert.buf));
 
 #if (CONFIG_CP2_ASSERT)
@@ -145,7 +145,7 @@ int mdbg_assert_read(int channel, struct mbuf_t *head,
 
 	memcpy(mdbg_proc->assert.buf, head->buf + PUB_HEAD_RSV, data_length);
 	mdbg_proc->assert.rcv_len = data_length;
-	pr_info("mdbg_assert_read:%s,data length %d\n",
+	pr_info("%s:%s,data length %d\n", __func__,
 		(char *)(mdbg_proc->assert.buf), data_length);
 #if (CONFIG_CP2_ASSERT)
 #ifndef CONFIG_WCND
@@ -191,7 +191,7 @@ int mdbg_loopcheck_read(int channel, struct mbuf_t *head,
 	memcpy(mdbg_proc->loopcheck.buf, head->buf + PUB_HEAD_RSV, data_length);
 	mdbg_proc->loopcheck.rcv_len = data_length;
 
-	pr_debug("mdbg_loopcheck_read:%s\n",
+	pr_debug("%s:%s\n", __func__,
 		 (char *)(mdbg_proc->loopcheck.buf));
 	mdbg_proc->fail_count = 0;
 	complete(&mdbg_proc->loopcheck.completed);
@@ -622,7 +622,7 @@ static ssize_t mdbg_proc_write(struct file *filp,
 
 #endif
 	if (count > MDBG_WRITE_SIZE) {
-		pr_err("mdbg_proc_write count > MDBG_WRITE_SIZE\n");
+		pr_err("%s count > MDBG_WRITE_SIZE\n", __func__);
 		return -ENOMEM;
 	}
 	memset(mdbg_proc->write_buf, 0, MDBG_WRITE_SIZE);
