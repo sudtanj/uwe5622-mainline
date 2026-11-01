@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>

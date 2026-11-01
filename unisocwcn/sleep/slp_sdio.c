@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/export.h>

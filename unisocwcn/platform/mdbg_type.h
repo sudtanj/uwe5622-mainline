@@ -36,15 +36,7 @@ extern u32 wcn_print_level;
 #define MDBG_HEADER_ERR		"WCN_MDBG_ERR: "
 #define MDBG_DEBUG_MODE		0
 
-#define WCN_HEADER		"WCN: "
-#define WCN_HEADER_ERR		"WCN_ERR: "
 #define WCN_HEADER_DEBUG		"WCN_DEBUG: "
-
-#define WCN_INFO(fmt, args...) \
-	pr_info(WCN_HEADER fmt, ## args)
-
-#define WCN_ERR(fmt, args...) \
-		pr_err(WCN_HEADER_ERR fmt,  ## args)
 
 #define WCN_DEBUG(fmt, args...) do { \
 	if (wcn_print_level ==  WCN_DEBUG_ON)\
@@ -81,7 +73,7 @@ extern u32 wcn_print_level;
 
 #define wcn_pr_daterate(inter, burst, now, fmt, ...)		\
 	wcn_printk_ratelimited(inter, burst, now,		\
-			KERN_INFO "WCN: " pr_fmt(fmt), ##__VA_ARGS__)
+			KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
 #define MDBG_FUNC_ENTERY	MDBG_LOG("ENTER.")
 #define MDBG_FUNC_EXIT		MDBG_LOG("EXIT.")

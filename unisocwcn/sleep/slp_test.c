@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <wcn_bus.h>

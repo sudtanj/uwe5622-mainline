@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -50,7 +52,7 @@ static int wcn_op_read(struct wcn_op_attr_t wcn_op_attr, unsigned int *pval)
 	ret = sprdwcn_bus_direct_read(wcn_op_attr.addr, pval,
 					wcn_op_attr.length);
 	if (ret < 0) {
-		WCN_ERR("%s read reg error:%d\n", __func__, ret);
+		pr_err("%s read reg error:%d\n", __func__, ret);
 		return ret;
 	}
 
@@ -67,7 +69,7 @@ static int wcn_op_write(struct wcn_op_attr_t wcn_op_attr)
 	ret = sprdwcn_bus_direct_write(wcn_op_attr.addr,
 		&wcn_op_attr.val, wcn_op_attr.length);
 	if (ret < 0) {
-		WCN_ERR("%s write reg error:%d\n", __func__, ret);
+		pr_err("%s write reg error:%d\n", __func__, ret);
 		return ret;
 	}
 
@@ -83,12 +85,12 @@ static long wcn_op_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (pbuf == NULL)
 		return  ret;
 	if (copy_from_user(&wcn_op_attr, pbuf, sizeof(wcn_op_attr))) {
-		WCN_ERR("%s copy from user error!\n", __func__);
+		pr_err("%s copy from user error!\n", __func__);
 
 		return -EFAULT;
 	}
 
-	WCN_INFO("WCN OPERATION IOCTL: 0x%x.\n", cmd);
+	pr_info("WCN OPERATION IOCTL: 0x%x.\n", cmd);
 
 	switch (cmd) {
 
@@ -97,13 +99,13 @@ static long wcn_op_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ret == 0) {
 			if (copy_to_user(pbuf, &wcn_op_attr,
 				sizeof(wcn_op_attr))) {
-				WCN_ERR("%s copy from user error!\n",
-					__func__);
+				pr_err("%s copy from user error!\n",
+				       __func__);
 
 				return -EFAULT;
 			}
 		} else
-			WCN_ERR("wcn_op_read return fail\n");
+			pr_err("wcn_op_read return fail\n");
 		break;
 
 	case IOCTL_WCN_OP_WRITE:
@@ -134,7 +136,7 @@ int wcn_op_init(void)
 	WCN_DEBUG("wcn_op_init\n");
 	ret = misc_register(&wcn_op_device);
 	if (ret)
-		WCN_ERR("wcn operation dev add failed!!!\n");
+		pr_err("wcn operation dev add failed!!!\n");
 
 	return 0;
 }

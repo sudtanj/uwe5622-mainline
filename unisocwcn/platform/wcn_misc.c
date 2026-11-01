@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/mutex.h>
 #include <linux/version.h>
 #include <linux/time.h>
@@ -149,7 +151,7 @@ long int wcn_ap_notify_btwf_time(void)
 	/* send to BTWF CP2 */
 	send_cnt = mdbg_send_atcmd((void *)aptime, strlen(aptime),
 		   WCN_ATCMD_KERNEL);
-	WCN_INFO("%s, send_cnt=%ld", aptime, send_cnt);
+	pr_info("%s, send_cnt=%ld", aptime, send_cnt);
 
 	return send_cnt;
 }
@@ -164,7 +166,7 @@ long int wcn_ap_notify_btwf_time(void)
 void marlin_bootup_time_update(void)
 {
 	s_marlin_bootup_time = local_clock();
-	WCN_INFO("s_marlin_bootup_time=%ld",
+	pr_info("s_marlin_bootup_time=%ld",
 		s_marlin_bootup_time);
 }
 

@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include "wcn_swd_dp.h"
 
 static void swd_ext_sel(bool enable)

@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include "sdiohal.h"
 
 static unsigned int sdiohal_rx_adapt_get(void)

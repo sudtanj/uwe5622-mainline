@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <wcn_bus.h>
 
 #include "bus_common.h"

@@ -10,6 +10,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include "bufring.h"
 #include "mdbg_type.h"
 #include "wcn_log.h"
@@ -176,7 +178,7 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 		if (ring->p_order_flag == 0) {
 			if (((ring->rp + read_len) > ring->wp)
 				&& (mdbg_dev->open_count != 0))
-				WCN_ERR("read overlay\n");
+				pr_err("read overlay\n");
 		}
 
 		if ((uintptr_t)buf > TASK_SIZE)
@@ -236,7 +238,7 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 	 */
 	if (((mdbg_ring_free_space(ring) - 1) < len)
 		&& (mdbg_dev->open_count != 0)) {
-		WCN_ERR("log buf is full, Discard the package=%d\n", len);
+		pr_err("log buf is full, Discard the package=%d\n", len);
 		wake_up_log_wait();
 		return len;
 	}

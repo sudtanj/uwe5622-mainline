@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
@@ -30,7 +32,7 @@ static int at_cmd_send(char *buf, unsigned int len)
 
 	WCN_DEBUG("%s len=%d\n", __func__, len);
 	if (unlikely(marlin_get_module_status() != true)) {
-		WCN_ERR("WCN module have not open\n");
+		pr_err("WCN module have not open\n");
 		return -EIO;
 	}
 
@@ -68,8 +70,8 @@ static void loopcheck_work_queue(struct work_struct *work)
 		return;
 	if (!timeleft) {
 		stop_loopcheck();
-		WCN_ERR("didn't get loopcheck ack\n");
-		WCN_INFO("start dump CP2 mem\n");
+		pr_err("didn't get loopcheck ack\n");
+		pr_info("start dump CP2 mem\n");
 		mdbg_assert_interface("loopcheck fail");
 		return;
 	}
@@ -85,19 +87,19 @@ void switch_cp2_log(bool flag)
 	char a[32];
 	unsigned char ret;
 
-	WCN_INFO("%s - %s entry!\n", __func__, (flag ? "open" : "close"));
+	pr_info("%s - %s entry!\n", __func__, (flag ? "open" : "close"));
 	mutex_lock(&atcmd_lock);
 	sprintf(a, "at+armlog=%d\r\n", (flag ? 1 : 0));
 	ret = at_cmd_send(a, sizeof(a));
 	if (ret) {
 		mutex_unlock(&atcmd_lock);
-		WCN_ERR("%s fail!\n", __func__);
+		pr_err("%s fail!\n", __func__);
 		return;
 	}
 	timeleft = wait_for_completion_timeout(&atcmd_completion, (3 * HZ));
 	mutex_unlock(&atcmd_lock);
 	if (!timeleft)
-		WCN_ERR("didn't get %s ack\n", __func__);
+		pr_err("didn't get %s ack\n", __func__);
 }
 
 int get_board_ant_num(void)
@@ -117,7 +119,7 @@ int get_board_ant_num(void)
 	 * Antenna num is fixed to one.
 	 */
 #ifdef CONFIG_UWE5622
-	WCN_INFO("%s [one_ant]\n", __func__);
+	pr_info("%s [one_ant]\n", __func__);
 	return MARLIN_ONE_ANT;
 #endif
 
@@ -128,26 +130,26 @@ int get_board_ant_num(void)
 	ret = at_cmd_send(a, sizeof(a));
 	if (ret) {
 		mutex_unlock(&atcmd_lock);
-		WCN_ERR("%s fail!\n", __func__);
+		pr_err("%s fail!\n", __func__);
 		return ret;
 	}
 	timeleft = wait_for_completion_timeout(&atcmd_completion, (3 * HZ));
 	if (!timeleft) {
 		mutex_unlock(&atcmd_lock);
-		WCN_ERR("didn't get board ant num, default:[three_ant]\n");
+		pr_err("didn't get board ant num, default:[three_ant]\n");
 		return MARLIN_THREE_ANT;
 	}
 	at_cmd_buf = mdbg_get_at_cmd_buf();
 	mutex_unlock(&atcmd_lock);
 	if (at_cmd_buf[0] == '2') {
-		WCN_INFO("%s [two_ant]\n", __func__);
+		pr_info("%s [two_ant]\n", __func__);
 		return MARLIN_TWO_ANT;
 	} else if (at_cmd_buf[0] == '3') {
-		WCN_INFO("%s [three_ant]\n", __func__);
+		pr_info("%s [three_ant]\n", __func__);
 		return MARLIN_THREE_ANT;
 	}
-	WCN_ERR("%s read err:%s, default:[three_ant]\n",
-		__func__, at_cmd_buf);
+	pr_err("%s read err:%s, default:[three_ant]\n",
+	       __func__, at_cmd_buf);
 	return MARLIN_THREE_ANT;
 }
 
@@ -157,18 +159,18 @@ void get_cp2_version(void)
 	char a[] = "at+spatgetcp2info\r\n";
 	unsigned char ret;
 
-	WCN_INFO("%s entry!\n", __func__);
+	pr_info("%s entry!\n", __func__);
 	mutex_lock(&atcmd_lock);
 	ret = at_cmd_send(a, sizeof(a));
 	if (ret) {
 		mutex_unlock(&atcmd_lock);
-		WCN_ERR("%s fail!\n", __func__);
+		pr_err("%s fail!\n", __func__);
 		return;
 	}
 	timeleft = wait_for_completion_timeout(&atcmd_completion, (3 * HZ));
 	mutex_unlock(&atcmd_lock);
 	if (!timeleft)
-		WCN_ERR("didn't get CP2 version\n");
+		pr_err("didn't get CP2 version\n");
 }
 
 #ifdef CONFIG_WCN_LOOPCHECK
@@ -177,7 +179,7 @@ void start_loopcheck(void)
 	if (!test_bit(WCN_LOOPCHECK_INIT, &loopcheck.status) ||
 	    test_and_set_bit(WCN_LOOPCHECK_OPEN, &loopcheck.status))
 		return;
-	WCN_INFO("%s\n", __func__);
+	pr_info("%s\n", __func__);
 	reinit_completion(&loopcheck.completion);
 	queue_delayed_work(loopcheck.workqueue, &loopcheck.work, HZ);
 }
@@ -187,7 +189,7 @@ void stop_loopcheck(void)
 	if (!test_bit(WCN_LOOPCHECK_INIT, &loopcheck.status) ||
 	    !test_and_clear_bit(WCN_LOOPCHECK_OPEN, &loopcheck.status))
 		return;
-	WCN_INFO("%s\n", __func__);
+	pr_info("%s\n", __func__);
 	complete_all(&loopcheck.completion);
 	cancel_delayed_work_sync(&loopcheck.work);
 }
@@ -212,7 +214,7 @@ int loopcheck_init(void)
 	loopcheck.workqueue =
 			create_singlethread_workqueue("WCN_LOOPCHECK_QUEUE");
 	if (!loopcheck.workqueue) {
-		WCN_ERR("WCN_LOOPCHECK_QUEUE create failed");
+		pr_err("WCN_LOOPCHECK_QUEUE create failed");
 		return -ENOMEM;
 	}
 	set_bit(WCN_LOOPCHECK_INIT, &loopcheck.status);

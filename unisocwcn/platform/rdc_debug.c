@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/kthread.h>
@@ -85,7 +87,7 @@ static int wcn_mkdir(char *path)
 	/* check if the new dir is created. */
 	fp = wcn_filp_open(path, O_DIRECTORY, 0644);
 	if (IS_ERR(fp)) {
-		WCN_INFO("open %s error!\n", path);
+		pr_info("open %s error!\n", path);
 		return -1;
 	}
 	WCN_DEBUG("open %s success.\n", path);
@@ -112,7 +114,7 @@ static int wcn_find_cp2_file_num(char *path, loff_t *pos)
 			sprintf(wcn_cp2_file_path, path, i);
 			fp_size = wcn_filp_open(wcn_cp2_file_path, O_RDONLY, 0);
 			if (IS_ERR(fp_size)) {
-				WCN_INFO("%s: Error, config file not found. want config file:%s \n",
+				pr_info("%s: Error, config file not found. want config file:%s \n",
 					__func__, wcn_cp2_file_path);
 				break;
 			}
@@ -136,12 +138,12 @@ static int wcn_find_cp2_file_num(char *path, loff_t *pos)
 				struct file *filp = NULL;
 
 				sprintf(wcn_cp2_file_path, path, 0);
-				WCN_INFO("%s: empty:%s\n", __func__,
+				pr_info("%s: empty:%s\n", __func__,
 					wcn_cp2_file_path);
 				filp = wcn_filp_open(wcn_cp2_file_path,
 					O_CREAT | O_RDWR | O_TRUNC, 0644);
 				if (IS_ERR(filp))
-					WCN_INFO("%s: can not empty:%s\n",
+					pr_info("%s: can not empty:%s\n",
 						__func__, wcn_cp2_file_path);
 				else
 					filp_close(filp, NULL);
@@ -168,7 +170,7 @@ static int wcn_find_cp2_file_num(char *path, loff_t *pos)
 		fp = wcn_filp_open(wcn_cp2_file_path,
 			O_CREAT | O_RDWR | O_TRUNC, 0644);
 		if (IS_ERR(fp)) {
-			WCN_INFO("%s :%s file is not exit\n",
+			pr_info("%s :%s file is not exit\n",
 				__func__, wcn_cp2_file_path);
 		} else
 			filp_close(fp, NULL);
@@ -195,8 +197,8 @@ retry:
 			     O_CREAT | O_RDWR | O_APPEND, 0644);
 	if (IS_ERR(filp)) {
 		if (retry > 0)
-			WCN_ERR("%s open %s error no.%ld retry:%d\n", __func__,
-				wcn_cp2_log_path, PTR_ERR(filp), retry);
+			pr_err("%s open %s error no.%ld retry:%d\n", __func__,
+			       wcn_cp2_log_path, PTR_ERR(filp), retry);
 
 		/*in case the path no longer exist, creat path or change path.*/
 		if ((PTR_ERR(filp) == -ENOENT) && (retry == 0)) {
@@ -214,11 +216,11 @@ retry:
 		}
 		retry++;
 		if (PTR_ERR(filp) == -EACCES)
-			WCN_ERR("%s: Permission denied.\n", __func__);
+			pr_err("%s: Permission denied.\n", __func__);
 		else if (PTR_ERR(filp) == -ENOMEM)
-			WCN_ERR("%s: no memory in system,"
-				"please delete old log file.\n",
-				__func__);
+			pr_err("%s: no memory in system,"
+			       "please delete old log file.\n",
+			       __func__);
 		return PTR_ERR(filp);
 	}
 
@@ -239,7 +241,7 @@ retry:
 				sprintf(wcn_cp2_log_path, wcn_cp2_log_path_tmp,
 					wcn_cp2_log_num);
 			} else {
-				WCN_INFO("%s error log num:%d\n",
+				pr_info("%s error log num:%d\n",
 					__func__, wcn_cp2_log_num);
 				wcn_cp2_log_num = 0;
 				sprintf(wcn_cp2_log_path, wcn_cp2_log_path_tmp,
@@ -251,13 +253,13 @@ retry:
 				wcn_cp2_log_num);
 		}
 
-		WCN_INFO("%s cp2 log file is %s\n", __func__,
-			 wcn_cp2_log_path);
+		pr_info("%s cp2 log file is %s\n", __func__,
+			wcn_cp2_log_path);
 		filp = wcn_filp_open(wcn_cp2_log_path,
 				 O_CREAT | O_RDWR | O_TRUNC, 0644);
 		if (IS_ERR(filp)) {
-			WCN_ERR("%s open wcn log file error no. %d\n",
-				__func__, (int)IS_ERR(filp));
+			pr_err("%s open wcn log file error no. %d\n",
+			       __func__, (int)IS_ERR(filp));
 			return PTR_ERR(filp);
 		}
 	}
@@ -269,7 +271,7 @@ retry:
 #endif
 
 	if (ret != len) {
-		WCN_ERR("wcn log write to file failed: %zd\n", ret);
+		pr_err("wcn log write to file failed: %zd\n", ret);
 		filp_close(filp, NULL);
 		return ret < 0 ? ret : -ENODEV;
 	}
@@ -286,7 +288,7 @@ int dumpmem_rx_callback(void *addr, unsigned int len)
 	static int first_time_open = 1;
 	static int retry;
 
-	WCN_INFO("dumpmem_rx_callback\n");
+	pr_info("dumpmem_rx_callback\n");
 
 	if (retry > WCN_DEBUG_RETRY_TIMES)
 		return 0;
@@ -300,8 +302,8 @@ retry:
 			O_CREAT | O_RDWR | O_APPEND, 0644);
 	if (IS_ERR(filp)) {
 		if (retry > 0)
-			WCN_ERR("%s open %s error no.%ld retry:%d\n", __func__,
-				wcn_cp2_mem_path, PTR_ERR(filp), retry);
+			pr_err("%s open %s error no.%ld retry:%d\n", __func__,
+			       wcn_cp2_mem_path, PTR_ERR(filp), retry);
 
 		/*in case the path no longer exist, creat path or change path.*/
 		if ((PTR_ERR(filp) == -ENOENT) && (retry == 0)) {
@@ -331,7 +333,7 @@ retry:
 #endif
 
 	if (ret != len) {
-		WCN_ERR("wcn mem write to file failed: %zd\n", ret);
+		pr_err("wcn mem write to file failed: %zd\n", ret);
 		filp_close(filp, NULL);
 		return ret < 0 ? ret : -ENODEV;
 	}
@@ -346,14 +348,14 @@ retry:
 int wcn_set_log_file_limit_size(unsigned int log_file_limit_size)
 {
 	wcn_cp2_log_limit_size = log_file_limit_size * 1024 * 1024;
-	WCN_INFO("%s = %d bytes\n", __func__, wcn_cp2_log_limit_size);
+	pr_info("%s = %d bytes\n", __func__, wcn_cp2_log_limit_size);
 	return 0;
 }
 
 int wcn_set_log_file_max_num(unsigned int log_file_max_num)
 {
 	wcn_cp2_file_max_num = log_file_max_num;
-	WCN_INFO("%s = %d\n", __func__, wcn_cp2_file_max_num);
+	pr_info("%s = %d\n", __func__, wcn_cp2_file_max_num);
 	return 0;
 }
 
@@ -361,14 +363,14 @@ int wcn_set_log_file_cover_old(unsigned int is_cover_old)
 {
 	if (is_cover_old == 1) {
 		wcn_cp2_log_cover_old = is_cover_old;
-		WCN_INFO("%s will cover old files!\n", __func__);
+		pr_info("%s will cover old files!\n", __func__);
 		return 0;
 	} else if (is_cover_old == 0) {
 		wcn_cp2_log_cover_old = is_cover_old;
-		WCN_INFO("%s NOT cover old files!\n", __func__);
+		pr_info("%s NOT cover old files!\n", __func__);
 		return 0;
 	}
-	WCN_ERR("%s param is invalid!\n", __func__);
+	pr_err("%s param is invalid!\n", __func__);
 	return -1;
 }
 
@@ -387,7 +389,7 @@ int wcn_set_log_file_path(char *path, unsigned int path_len)
 
 	/* 10 is the len of 0xFFFFFFFF to decimal num*/
 	if (path_len > (WCN_DEBUG_MAX_PATH_LEN - 10)) {
-		WCN_ERR("%s: log path is too long:%d", __func__, path_len);
+		pr_err("%s: log path is too long:%d", __func__, path_len);
 		return -1;
 	}
 
@@ -410,8 +412,8 @@ int wcn_set_log_file_path(char *path, unsigned int path_len)
 	filp = wcn_filp_open(wcn_cp2_log_path_user,
 		O_CREAT | O_RDWR | O_APPEND, 0644);
 	if (IS_ERR(filp)) {
-		WCN_ERR("new path [%s] is invalid %d\n", wcn_cp2_log_path_user,
-			(int)IS_ERR(filp));
+		pr_err("new path [%s] is invalid %d\n", wcn_cp2_log_path_user,
+		       (int)IS_ERR(filp));
 		return PTR_ERR(filp);
 	}
 	filp_close(filp, NULL);
@@ -427,8 +429,8 @@ int wcn_set_log_file_path(char *path, unsigned int path_len)
 	wcn_cp2_log_num = wcn_cp2_log_num_user;
 	wcn_cp2_mem_num = wcn_cp2_mem_num_user;
 
-	WCN_INFO("%s cp2 log/mem file: %s, logpos=%d, %s\n", __func__,
-		 wcn_cp2_log_path, (int)wcn_cp2_log_pos, wcn_cp2_mem_path);
+	pr_info("%s cp2 log/mem file: %s, logpos=%d, %s\n", __func__,
+		wcn_cp2_log_path, (int)wcn_cp2_log_pos, wcn_cp2_mem_path);
 
 	debug_user_inited = 1;
 
@@ -457,34 +459,34 @@ static void wcn_config_log_file(void)
 		fp_size = wcn_filp_open(wcn_cp2_config_path[index],
 					 O_RDONLY, 0);
 		if (IS_ERR(fp_size)) {
-			WCN_INFO("%s: Error, config file not found. want config file:%s \n",
+			pr_info("%s: Error, config file not found. want config file:%s \n",
 				__func__, wcn_cp2_config_path[index]);
 		}
 		else {
 			config_size = (int)fp_size->f_inode->i_size;
-			WCN_INFO("%s: find config file:%s size:%d\n",
-				 __func__, wcn_cp2_config_path[index],
-				 config_size);
+			pr_info("%s: find config file:%s size:%d\n",
+				__func__, wcn_cp2_config_path[index],
+				config_size);
 			break;
 		}
 	}
 	if (index == WCN_DEBUG_CFG_MAX_PATH_NUM) {
-		WCN_INFO("%s: there is no unisoc_cp2log_config.txt\n",
-			 __func__);
+		pr_info("%s: there is no unisoc_cp2log_config.txt\n",
+			__func__);
 		return;
 	}
 
 	buf = kzalloc(config_size+1, GFP_KERNEL);
 	if (!buf) {
-		WCN_ERR("%s:no more space[%d]!\n", __func__, config_size+1);
+		pr_err("%s:no more space[%d]!\n", __func__, config_size+1);
 		return;
 	}
 	buf_end = buf + config_size;
 
 	filp = wcn_filp_open(wcn_cp2_config_path[index], O_RDONLY, 0);
 	if (IS_ERR(filp)) {
-		WCN_ERR("%s: can not open log config file:%s\n",
-			__func__, wcn_cp2_config_path[index]);
+		pr_err("%s: can not open log config file:%s\n",
+		       __func__, wcn_cp2_config_path[index]);
 		goto out;
 	}
 
@@ -495,24 +497,24 @@ static void wcn_config_log_file(void)
 #endif
 
 	if (read_len <= 0) {
-		WCN_ERR("%s: can not read config file read_len:%d\n",
-			__func__, read_len);
+		pr_err("%s: can not read config file read_len:%d\n",
+		       __func__, read_len);
 		goto out1;
 	}
 
 	buf[config_size+1] = '\0';
-	//WCN_INFO("config_file:%s\n", buf);
+	//pr_info("config_file:%s\n", buf);
 
 	/* config wcn_cp2_log_limit_size */
 	cc = strstr(buf, limit_size);
 	if (cc == NULL || cc >= buf_end) {
-		WCN_INFO("can not find limit_size in config file!\n");
+		pr_info("can not find limit_size in config file!\n");
 		goto config_max_num;
 	} else {
 		config_limit_size =
 			simple_strtol(cc + strlen(limit_size), &cc, 10);
 		if (config_limit_size == 0) {
-			WCN_ERR("config_limit_size invalid!\n");
+			pr_err("config_limit_size invalid!\n");
 			goto config_max_num;
 		}
 	}
@@ -527,12 +529,12 @@ config_max_num:
 	/* config wcn_cp2_file_max_num */
 	cc = strstr(buf, max_num);
 	if (cc == NULL || cc >= buf_end) {
-		WCN_INFO("can not find max_num in config file!\n");
+		pr_info("can not find max_num in config file!\n");
 		goto config_cover_old;
 	} else {
 		config_max_num = simple_strtol(cc + strlen(max_num), &cc, 10);
 		if (config_max_num == 0) {
-			WCN_ERR("config_max_num invalid!\n");
+			pr_err("config_max_num invalid!\n");
 			goto config_cover_old;
 		}
 	}
@@ -542,7 +544,7 @@ config_cover_old:
 	/* config wcn_cp2_log_cover_old */
 	cc = strstr(buf, cover_old);
 	if (cc == NULL || cc >= buf_end) {
-		WCN_INFO("can not find cover_old in config file!\n");
+		pr_info("can not find cover_old in config file!\n");
 		goto config_new_path;
 	} else {
 		if (strncmp(cc + strlen(cover_old), "true", 4) == 0)
@@ -554,20 +556,20 @@ config_cover_old:
 		else if (strncmp(cc + strlen(cover_old), "FALSE", 5) == 0)
 			wcn_cp2_log_cover_old = 0;
 		else
-			WCN_ERR("%s param is invalid!\n", cover_old);
+			pr_err("%s param is invalid!\n", cover_old);
 	}
 
 config_new_path:
 	/* config wcn_cp2_log_path */
 	cc = strstr(buf, log_path);
 	if (cc == NULL || cc >= buf_end) {
-		WCN_INFO("can not find log_path in config file!\n");
+		pr_info("can not find log_path in config file!\n");
 	} else {
 		char *path_start = cc + strlen(log_path) + 1;
 		char *path_end = strstr(path_start, "\"");
 
 		if (path_end == NULL || path_end >= buf_end) {
-			WCN_ERR("can not find log_path_end in config file!\n");
+			pr_err("can not find log_path_end in config file!\n");
 		} else {
 			path_end[0] = '\0';
 			wcn_set_log_file_path(path_start, path_end-path_start);
@@ -591,14 +593,14 @@ int wcn_debug_init(void)
 	if (config_inited == 0) {
 		wcn_config_log_file();
 		config_inited = 1;
-		WCN_INFO("%s unisoc cp2 log: limit_size:[%d Byte], "
-			 "log_file_num:[%d], cover_old:[%d-%s]\n",
-			 __func__, wcn_cp2_log_limit_size,
-			 wcn_cp2_file_max_num,
-			 wcn_cp2_log_cover_old,
-			 (wcn_cp2_log_cover_old ?
-			 "cover_old" :
-			 "NOT_cover_old"));
+		pr_info("%s unisoc cp2 log: limit_size:[%d Byte], "
+			"log_file_num:[%d], cover_old:[%d-%s]\n",
+			__func__, wcn_cp2_log_limit_size,
+			wcn_cp2_file_max_num,
+			wcn_cp2_log_cover_old,
+			(wcn_cp2_log_cover_old ?
+			"cover_old" :
+			"NOT_cover_old"));
 	}
 
 	if (debug_inited || debug_user_inited) {

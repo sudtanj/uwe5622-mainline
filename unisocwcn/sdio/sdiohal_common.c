@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/version.h>
 #include "bus_common.h"
 #include "sdiohal.h"

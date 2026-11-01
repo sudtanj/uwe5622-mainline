@@ -9,6 +9,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  */
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <asm/byteorder.h>
 #include <linux/string.h>
 #include <marlin_platform.h>
@@ -95,13 +97,13 @@ static int mdbg_dump_data(unsigned int start_addr,
 	int temp_len;
 
 	if (unlikely(!mdbg_dev->ring_dev)) {
-		WCN_ERR("mdbg_dump ring_dev is NULL\n");
+		pr_err("mdbg_dump ring_dev is NULL\n");
 		return -1;
 	}
 	str = NULL;
 	if (str) {
 		/* msleep(20); */
-		WCN_INFO("mdbg str_len:%d\n", str_len);
+		pr_info("mdbg str_len:%d\n", str_len);
 		if (mdbg_dev->ring_dev->flag_smp == 1)
 			mdbg_write_smp_head(str_len);
 
@@ -120,7 +122,7 @@ static int mdbg_dump_data(unsigned int start_addr,
 #endif
 			}
 			if (temp_len < 0) {
-				WCN_ERR("ringbuf str error\n");
+				pr_err("ringbuf str error\n");
 				return 0;
 			}
 			str += temp_len;
@@ -130,7 +132,7 @@ static int mdbg_dump_data(unsigned int start_addr,
 
 		while ((mdbg_ring_free_space(mdbg_dev->ring_dev->ring)
 			- 1 == 0) && (mdbg_dev->open_count != 0)) {
-			WCN_ERR("no space to write mem, sleep...\n");
+			pr_err("no space to write mem, sleep...\n");
 			wake_up_log_wait();
 			 msleep(20);
 		}
@@ -159,13 +161,13 @@ static int mdbg_dump_data(unsigned int start_addr,
 		err = sprdwcn_bus_direct_read(start_addr + count, buf,
 					      trans_size);
 		if (err < 0) {
-			WCN_ERR("%s dump memory error:%d\n", __func__, err);
+			pr_err("%s dump memory error:%d\n", __func__, err);
 			goto out;
 		}
 		if (prin_temp == 0) {
 			prin_temp = 1;
 			for (i = 0; i < 5; i++)
-				WCN_ERR("mdbg *****buf[%d]:0x%x\n",
+				pr_err("mdbg *****buf[%d]:0x%x\n",
 				       i, buf[i]);
 		}
 		if (mdbg_dev->ring_dev->flag_smp == 1)
@@ -186,7 +188,7 @@ static int mdbg_dump_data(unsigned int start_addr,
 #endif
 			}
 			if (temp_len < 0) {
-				WCN_ERR("ringbuf data error\n");
+				pr_err("ringbuf data error\n");
 				return 0;
 			}
 				temp_buf += temp_len;
@@ -196,7 +198,7 @@ static int mdbg_dump_data(unsigned int start_addr,
 		}
 		while ((mdbg_ring_free_space(mdbg_dev->ring_dev->ring) - 1 == 0)
 			&& (mdbg_dev->open_count != 0)) {
-			WCN_ERR("no space buf to write mem, sleep...\n");
+			pr_err("no space buf to write mem, sleep...\n");
 			wake_up_log_wait();
 		    msleep(20);
 		}
@@ -220,9 +222,9 @@ static void mdbg_clear_log(void)
 {
 	if (mdbg_dev->ring_dev->ring->rp
 		!= mdbg_dev->ring_dev->ring->wp) {
-		WCN_INFO("log:%ld left in ringbuf not read\n",
-			 (long int)(mdbg_dev->ring_dev->ring->wp -
-			 mdbg_dev->ring_dev->ring->rp));
+		pr_info("log:%ld left in ringbuf not read\n",
+			(long int)(mdbg_dev->ring_dev->ring->wp -
+			mdbg_dev->ring_dev->ring->rp));
 		mdbg_ring_clear(mdbg_dev->ring_dev->ring);
 	}
 }
@@ -411,7 +413,7 @@ static int wcn_fill_dump_head_info(struct wcn_dump_mem_reg *mem_cfg, int cnt)
 	head_len = sizeof(*head) + sizeof(*sec) * cnt;
 	head = kzalloc(head_len, GFP_KERNEL);
 	if (unlikely(!head)) {
-		WCN_ERR("system has no mem for dump mem\n");
+		pr_err("system has no mem for dump mem\n");
 		return -1;
 	}
 
@@ -426,9 +428,9 @@ static int wcn_fill_dump_head_info(struct wcn_dump_mem_reg *mem_cfg, int cnt)
 		sec->start = cpu_to_le32(mem->addr);
 		sec->end = cpu_to_le32(mem->addr + mem->len - 1);
 		len += mem->len;
-		WCN_INFO("section[%d] [0x%x 0x%x 0x%x]\n",
-			 i, le32_to_cpu(sec->start),
-			 le32_to_cpu(sec->end), le32_to_cpu(sec->off));
+		pr_info("section[%d] [0x%x 0x%x 0x%x]\n",
+			i, le32_to_cpu(sec->start),
+			le32_to_cpu(sec->end), le32_to_cpu(sec->off));
 	}
 	head->file_size = cpu_to_le32(len + strlen(WCN_DUMP_END_STRING));
 
@@ -454,7 +456,7 @@ static void mdbg_dump_str(char *str, int str_len)
 	dumpmem_rx_callback(str, str_len);
 #endif
 	wake_up_log_wait();
-	WCN_INFO("dump str finish!");
+	pr_info("dump str finish!");
 }
 
 /*
@@ -466,7 +468,7 @@ static void wcn_dump_cp_register(struct wcn_dump_mem_reg *mem)
 
 	for (i = 11; i <= 17; i++) {
 		mdbg_dump_data(mem[i].addr, NULL, mem[i].len, 0);
-		WCN_INFO("dump cp reg section[%d] ok!\n", i);
+		pr_info("dump cp reg section[%d] ok!\n", i);
 	}
 }
 
@@ -479,7 +481,7 @@ static void __maybe_unused wcn_dump_cp_data(struct wcn_dump_mem_reg *mem, int st
 
 	for (i = start; i <= end; i++) {
 		mdbg_dump_data(mem[i].addr, NULL, mem[i].len, 0);
-		WCN_INFO("dump cp reg section[%d] ok!\n", i);
+		pr_info("dump cp reg section[%d] ok!\n", i);
 	}
 }
 
@@ -504,10 +506,10 @@ static int cp_dcache_clean_invalid_all(void)
 		return ret;
 	}
 	if (!(reg_val & DCACHE_ENABLE_MASK)) {
-		WCN_INFO("CP DCACHE DISENABLE\n");
+		pr_info("CP DCACHE DISENABLE\n");
 		return ret;
 	}
-	WCN_INFO("CP DCACHE ENABLE\n");
+	pr_info("CP DCACHE ENABLE\n");
 	ret = sprdwcn_bus_reg_read(DCACHE_CFG0, &reg_val, 4);
 	if (!(ret == 0)) {
 		pr_info("Marlin3_Dcache REG sdiohal_dt_read error !\n");
@@ -555,35 +557,35 @@ static void dap_sel_btwf_lite(void)
 
 	ret = sprdwcn_bus_reg_read(DAP_CTRL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read DJTAG_DAP_SEL error:%d\n", __func__, ret);
-		WCN_INFO("dt fail,start reset pin!\n");
+		pr_err("%s read DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_info("dt fail,start reset pin!\n");
 		ret = marlin_reset_reg();
 		if (ret < 0) {
-			WCN_ERR("dt fail,reset pin fail!\n");
+			pr_err("dt fail,reset pin fail!\n");
 			return;
 		}
 		ret = sprdwcn_bus_reg_read(DAP_CTRL, &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("after reset,dt read still fail!\n");
+			pr_err("after reset,dt read still fail!\n");
 			return;
 		}
 	}
-	WCN_INFO("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 
 	reg_val |= CM4_DAP_SEL_BTWF_LITE;
 	ret = sprdwcn_bus_reg_write(DAP_CTRL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 
 	ret = sprdwcn_bus_reg_read(DAP_CTRL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read2 DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s read2 DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s 2:DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s 2:DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 }
 
 /* select aon_apb_dap DAP(Debug Access Port) */
@@ -595,7 +597,7 @@ static void __maybe_unused dap_sel_default_lite(void)
 	reg_val = 0;
 	ret = sprdwcn_bus_reg_write(DAP_CTRL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
 }
@@ -608,25 +610,25 @@ static void apb_eb_lite(void)
 
 	ret = sprdwcn_bus_reg_read(APB_ENB1, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read APB_EB error:%d\n", __func__, ret);
+		pr_err("%s read APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_EB:0x%x\n", __func__, reg_val);
 
 	reg_val |= DBG_CM4_EB;
 	ret = sprdwcn_bus_reg_write(APB_ENB1, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write APB_EB error:%d\n", __func__, ret);
+		pr_err("%s write APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_EB:0x%x\n", __func__, reg_val);
 
 	ret = sprdwcn_bus_reg_read(APB_ENB1, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read2 APB_EB error:%d\n", __func__, ret);
+		pr_err("%s read2 APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s 2:APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s 2:APB_EB:0x%x\n", __func__, reg_val);
 }
 #endif
 
@@ -638,35 +640,35 @@ static void __maybe_unused dap_sel_btwf(void)
 
 	ret = sprdwcn_bus_reg_read(DJTAG_DAP_SEL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read DJTAG_DAP_SEL error:%d\n", __func__, ret);
-		WCN_INFO("dt fail,start reset pin!\n");
+		pr_err("%s read DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_info("dt fail,start reset pin!\n");
 		ret = marlin_reset_reg();
 		if (ret < 0) {
-			WCN_ERR("dt fail,reset pin fail!\n");
+			pr_err("dt fail,reset pin fail!\n");
 			return;
 		}
 		ret = sprdwcn_bus_reg_read(DJTAG_DAP_SEL, &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("after reset,dt read still fail!\n");
+			pr_err("after reset,dt read still fail!\n");
 			return;
 		}
 	}
-	WCN_INFO("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 
 	reg_val |= CM4_DAP_SEL_BTWF | CM4_DAP_SEL_GNSS;
 	ret = sprdwcn_bus_reg_write(DJTAG_DAP_SEL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 
 	ret = sprdwcn_bus_reg_read(DJTAG_DAP_SEL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read2 DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s read2 DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s 2:DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
+	pr_info("%s 2:DJTAG_DAP_SEL:0x%x\n", __func__, reg_val);
 }
 
 /* select aon_apb_dap DAP(Debug Access Port) */
@@ -678,7 +680,7 @@ static void __maybe_unused dap_sel_default(void)
 	reg_val = 0;
 	ret = sprdwcn_bus_reg_write(DJTAG_DAP_SEL, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
+		pr_err("%s write DJTAG_DAP_SEL error:%d\n", __func__, ret);
 		return;
 	}
 }
@@ -691,25 +693,25 @@ static void __maybe_unused apb_rst(void)
 
 	ret = sprdwcn_bus_reg_read(APB_RST, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read APB_RST error:%d\n", __func__, ret);
+		pr_err("%s read APB_RST error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_RST:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_RST:0x%x\n", __func__, reg_val);
 
 	reg_val &= ~CM4_DAP0_SOFT_RST & ~CM4_DAP1_SOFT_RST;
 	ret = sprdwcn_bus_reg_write(APB_RST, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write APB_RST error:%d\n", __func__, ret);
+		pr_err("%s write APB_RST error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_RST:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_RST:0x%x\n", __func__, reg_val);
 
 	ret = sprdwcn_bus_reg_read(APB_RST, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read2 APB_RST error:%d\n", __func__, ret);
+		pr_err("%s read2 APB_RST error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s 2:APB_RST:0x%x\n", __func__, reg_val);
+	pr_info("%s 2:APB_RST:0x%x\n", __func__, reg_val);
 }
 
 /* enable aon_apb_dap_en */
@@ -720,25 +722,25 @@ static void __maybe_unused apb_eb(void)
 
 	ret = sprdwcn_bus_reg_read(APB_EB, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read APB_EB error:%d\n", __func__, ret);
+		pr_err("%s read APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_EB:0x%x\n", __func__, reg_val);
 
 	reg_val |= CM4_DAP0_EB | CM4_DAP1_EB;
 	ret = sprdwcn_bus_reg_write(APB_EB, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write APB_EB error:%d\n", __func__, ret);
+		pr_err("%s write APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s APB_EB:0x%x\n", __func__, reg_val);
 
 	ret = sprdwcn_bus_reg_read(APB_EB, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read2 APB_EB error:%d\n", __func__, ret);
+		pr_err("%s read2 APB_EB error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s 2:APB_EB:0x%x\n", __func__, reg_val);
+	pr_info("%s 2:APB_EB:0x%x\n", __func__, reg_val);
 }
 
 static void check_dap_is_ok(void)
@@ -748,13 +750,13 @@ static void check_dap_is_ok(void)
 
 	ret = sprdwcn_bus_reg_read(BTWF_STATUS_REG, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read error:%d\n", __func__, ret);
+		pr_err("%s read error:%d\n", __func__, ret);
 		return;
 	}
-	WCN_INFO("%s :0x%x\n", __func__, reg_val);
+	pr_info("%s :0x%x\n", __func__, reg_val);
 
 	if (reg_val == BTWF_OK_VALUE)
-		WCN_INFO("btwf dap is ready\n");
+		pr_info("btwf dap is ready\n");
 }
 
 /*
@@ -774,7 +776,7 @@ static void hold_btwf_core(void)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -797,7 +799,7 @@ static void release_btwf_core(void)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -817,7 +819,7 @@ static void set_debug_mode(void)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -840,7 +842,7 @@ static void set_core_reg(unsigned int index)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -864,7 +866,7 @@ static void write_core_reg_value(unsigned int reg_index, unsigned int value)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -873,19 +875,19 @@ static void write_core_reg_value(unsigned int reg_index, unsigned int value)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
 
 	sprdwcn_bus_reg_read(a[2][0], &reg_val, 4);
-	WCN_INFO("%s value: 0x%x, reg_value:0x%x\n", __func__, value, reg_val);
+	pr_info("%s value: 0x%x, reg_value:0x%x\n", __func__, value, reg_val);
 
 	for (i = 0; i < 3; i++) {
 		reg_val = a[i][2];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -929,7 +931,7 @@ static void read_core_reg(unsigned int value, unsigned int *p)
 		reg_val = a[i][1];
 		ret = sprdwcn_bus_reg_write(a[i][0], &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s  error:%d\n", __func__, ret);
+			pr_err("%s  error:%d\n", __func__, ret);
 			return;
 		}
 	}
@@ -937,7 +939,7 @@ static void read_core_reg(unsigned int value, unsigned int *p)
 	sprdwcn_bus_reg_read(a[2][0], &reg_val, 4);
 	p[value] = reg_val;
 
-	WCN_INFO("%s ****R[%d]: 0x%x****\n", __func__, value, reg_val);
+	pr_info("%s ****R[%d]: 0x%x****\n", __func__, value, reg_val);
 }
 
 
@@ -953,7 +955,7 @@ int dump_arm_reg(void)
 
 	p = kzalloc(19 * 4, GFP_KERNEL);
 	if (!p) {
-		WCN_ERR("Can not allocate ARM REG Buffer\n");
+		pr_err("Can not allocate ARM REG Buffer\n");
 		return -ENOMEM;
 	}
 
@@ -974,11 +976,11 @@ int dump_arm_reg(void)
 		set_core_reg(i);
 		read_core_reg(i, p);
 	}
-	WCN_INFO("------------[ ARM REG ]------------\n");
+	pr_info("------------[ ARM REG ]------------\n");
 	for (i = 0; i < 19; i++)
-		WCN_INFO("[%s] = \t0x%08x\n", core_reg_name[i], p[i]);
+		pr_info("[%s] = \t0x%08x\n", core_reg_name[i], p[i]);
 
-	WCN_INFO("------------[ ARM END ]------------\n");
+	pr_info("------------[ ARM END ]------------\n");
 	kfree(p);
 #ifndef CONFIG_UWE5622
 	/* make sure JTAG can connect dap */
@@ -994,10 +996,10 @@ static int check_bt_buffer_RW(void)
 
 	ret = sprdwcn_bus_reg_read(HCI_ARM_WR_RD_MODE, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("read HCI_ARM_WR_RD_MODE reg error:%d\n", ret);
+		pr_err("read HCI_ARM_WR_RD_MODE reg error:%d\n", ret);
 		return ret;
 	}
-	WCN_INFO("%s HCI_ARM_WR_RD_MODE reg val:0x%x\n", __func__, temp);
+	pr_info("%s HCI_ARM_WR_RD_MODE reg val:0x%x\n", __func__, temp);
 
 	temp = HCI_ARM_WR_RD_VALUE;
 	ret = sprdwcn_bus_reg_write(HCI_ARM_WR_RD_MODE, &temp, 4);
@@ -1012,23 +1014,23 @@ static int enable_cp_pll(void)
 
 	ret = sprdwcn_bus_reg_read(CLK_CTRL0, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read CLK_CTRL0 reg error:%d\n", __func__, ret);
+		pr_err("%s read CLK_CTRL0 reg error:%d\n", __func__, ret);
 		return ret;
 	}
-	WCN_INFO("%s rd CLK_CTRL0 reg val:0x%x\n", __func__, temp);
+	pr_info("%s rd CLK_CTRL0 reg val:0x%x\n", __func__, temp);
 
 	temp = temp | APLL_PDN;
 	ret = sprdwcn_bus_reg_write(CLK_CTRL0, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write CLK_CTRL0 reg error:%d\n", __func__, ret);
+		pr_err("%s write CLK_CTRL0 reg error:%d\n", __func__, ret);
 		return ret;
 	}
 	udelay(200);
 	temp = temp | APLL_PDN | BPLL_PDN;
-	WCN_INFO("%s enable CLK_CTRL0 val:0x%x\n", __func__, temp);
+	pr_info("%s enable CLK_CTRL0 val:0x%x\n", __func__, temp);
 	ret = sprdwcn_bus_reg_write(CLK_CTRL0, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("%s write CLK_CTRL0 reg err:%d\n", __func__, ret);
+		pr_err("%s write CLK_CTRL0 reg err:%d\n", __func__, ret);
 		return ret;
 	}
 	udelay(200);
@@ -1043,29 +1045,29 @@ static int check_wifi_power_domain_ison(void)
 
 	ret = enable_cp_pll();
 	if (ret < 0) {
-		WCN_ERR("wifi enable cp pll err\n");
+		pr_err("wifi enable cp pll err\n");
 		return ret;
 	}
 
 	ret = sprdwcn_bus_reg_read(CHIP_SLP, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read CHIP_SLP reg error:%d\n", __func__, ret);
+		pr_err("%s read CHIP_SLP reg error:%d\n", __func__, ret);
 		return ret;
 	}
-	WCN_INFO("%s CHIP_SLP reg val:0x%x\n", __func__, temp);
+	pr_info("%s CHIP_SLP reg val:0x%x\n", __func__, temp);
 
 	if ((temp & WIFI_ALL_PWRON) != WIFI_ALL_PWRON) {
 		/* WIFI WRAP */
 		if ((temp & WIFI_WRAP_PWRON) != WIFI_WRAP_PWRON) {
-			WCN_INFO("WIFI WRAP have power down\n");
+			pr_info("WIFI WRAP have power down\n");
 			/* WRAP power on */
-			WCN_INFO("WIFI WRAP start power on\n");
+			pr_info("WIFI WRAP start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_AON_CFG4, &temp, 4);
 			temp = temp & (~WIFI_WRAP_PWR_DOWN);
 			ret = sprdwcn_bus_reg_write(PD_WIFI_AON_CFG4, &temp, 4);
 			udelay(200);
 			/* MAC power on */
-			WCN_INFO("WIFI MAC start power on\n");
+			pr_info("WIFI MAC start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_MAC_AON_CFG4,
 						   &temp, 4);
 			temp = temp & (~WIFI_MAC_PWR_DOWN);
@@ -1073,21 +1075,21 @@ static int check_wifi_power_domain_ison(void)
 						    &temp, 4);
 			udelay(200);
 			/* PHY power on */
-			WCN_INFO("WIFI PHY start power on\n");
+			pr_info("WIFI PHY start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_PHY_AON_CFG4,
 						   &temp, 4);
 			temp = temp & (~WIFI_PHY_PWR_DOWN);
 			ret = sprdwcn_bus_reg_write(PD_WIFI_PHY_AON_CFG4,
 						    &temp, 4);
 			/* retention */
-			WCN_INFO("WIFI retention start power on\n");
+			pr_info("WIFI retention start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_AON_CFG4, &temp, 4);
 			temp = temp | WIFI_RETENTION;
 			ret = sprdwcn_bus_reg_write(PD_WIFI_AON_CFG4, &temp, 4);
 		}
 		/* WIFI MAC */
 		else if ((temp & WIFI_MAC_PWRON) != WIFI_MAC_PWRON) {
-			WCN_INFO("WIFI MAC have power down\n");
+			pr_info("WIFI MAC have power down\n");
 			/* MAC_AON_WIFI_DOZE_CTL [bit1 =0] */
 			ret = sprdwcn_bus_reg_read(DUMP_WIFI_AON_MAC_ADDR,
 						   &temp, 4);
@@ -1107,15 +1109,15 @@ static int check_wifi_power_domain_ison(void)
 
 	ret = sprdwcn_bus_reg_read(WIFI_ENABLE, &temp, 4);
 	if (ret < 0) {
-		WCN_ERR("%s read WIFI_ENABLE reg error:%d\n", __func__, ret);
+		pr_err("%s read WIFI_ENABLE reg error:%d\n", __func__, ret);
 		return ret;
 	}
-	WCN_INFO("%s WIFI_ENABLE reg val:0x%x\n", __func__, temp);
+	pr_info("%s WIFI_ENABLE reg val:0x%x\n", __func__, temp);
 
 	if ((temp & WIFI_ALL_EN) == WIFI_ALL_EN)
 		return 0;
 
-	WCN_INFO("WIFI_en and wifi_mac_en is disable\n");
+	pr_info("WIFI_en and wifi_mac_en is disable\n");
 	ret = sprdwcn_bus_reg_read(WIFI_ENABLE, &temp, 4);
 	temp = temp | WIFI_EN;
 	temp = temp | WIFI_MAC_EN;
@@ -1131,17 +1133,17 @@ static void dump_dummy_read(void)
 
 	ret = sprdwcn_bus_reg_read(CHIPID_REG, &reg_val, 4);
 	if (ret < 0) {
-		WCN_ERR("%s dummy read err:%d\n", __func__, ret);
-		WCN_INFO("%s dt fail,start reset!\n", __func__);
+		pr_err("%s dummy read err:%d\n", __func__, ret);
+		pr_info("%s dt fail,start reset!\n", __func__);
 		ret = marlin_reset_reg();
 		if (ret < 0) {
-			WCN_ERR("%s dt fail,reset fail!\n", __func__);
+			pr_err("%s dt fail,reset fail!\n", __func__);
 			return;
 		}
 		ret = sprdwcn_bus_reg_read(CHIPID_REG, &reg_val, 4);
 		if (ret < 0) {
-			WCN_ERR("%s after reset,dummy read still fail!\n",
-				__func__);
+			pr_err("%s after reset,dummy read still fail!\n",
+			       __func__);
 			return;
 		}
 	}
@@ -1167,7 +1169,7 @@ int mdbg_dump_mem(void)
 	static char mdbg_dump_mem_cnt;
 
 	if (mdbg_dump_mem_cnt) {
-		WCN_ERR("Not dump again!\n");
+		pr_err("Not dump again!\n");
 		return 0;
 	}
 	mdbg_dump_mem_cnt++;
@@ -1198,7 +1200,7 @@ int mdbg_dump_mem(void)
 
 	count = mdbg_dump_data(CP_START_ADDR, NULL, FIRMWARE_MAX_SIZE, 0);
 	if (count <= 0) {
-		WCN_INFO("mdbg start reset marlin reg!\n");
+		pr_info("mdbg start reset marlin reg!\n");
 		ret = marlin_reset_reg();
 		if (ret < 0)
 			return 0;
@@ -1206,56 +1208,56 @@ int mdbg_dump_mem(void)
 		count = mdbg_dump_data(CP_START_ADDR, NULL,
 				       FIRMWARE_MAX_SIZE, 0);
 
-		WCN_INFO("mdbg only dump ram %ld ok!\n", count);
+		pr_info("mdbg only dump ram %ld ok!\n", count);
 
 		goto end;
 	}
-	WCN_INFO("mdbg dump ram %ld ok!\n", count);
+	pr_info("mdbg dump ram %ld ok!\n", count);
 
 	if (AON_AHB_ADDR) {
 		count = mdbg_dump_data(AON_AHB_ADDR, "start_dump_aon_ahb_reg",
 		AON_AHB_SIZE, strlen("start_dump_aon_ahb_reg"));
-		WCN_INFO("mdbg dump aon ahb %ld ok!\n", count);
+		pr_info("mdbg dump aon ahb %ld ok!\n", count);
 	}
 	if (AON_APB_ADDR) {
 		count = mdbg_dump_data(AON_APB_ADDR, "start_dump_aon_apb_reg",
 		AON_APB_SIZE, strlen("start_dump_aon_aph_reg"));
-		WCN_INFO("mdbg dump aon_apb %ld ok!\n", count);
+		pr_info("mdbg dump aon_apb %ld ok!\n", count);
 	}
 	if (BTWF_AHB_ADDR) {
 		count = mdbg_dump_data(BTWF_AHB_ADDR, "start_dump_btwf_ahb_reg",
 		BTWF_AHB_SIZE, strlen("start_dump_btwf_ahb_reg"));
-		WCN_INFO("mdbg dump btwfahb %ld ok!\n", count);
+		pr_info("mdbg dump btwfahb %ld ok!\n", count);
 	}
 	if (BTWF_APB_ADDR) {
 		count = mdbg_dump_data(BTWF_APB_ADDR, "start_dump_btwf_apb_reg",
 		BTWF_APB_SIZE, strlen("start_dump_btwf_apb_reg"));
-		WCN_INFO("mdbg dump btwfapb %ld ok!\n", count);
+		pr_info("mdbg dump btwfapb %ld ok!\n", count);
 	}
 	if (AON_CLK_ADDR) {
 		count = mdbg_dump_data(AON_CLK_ADDR, "start_dump_aon_clk_reg",
 		AON_CLK_SIZE, strlen("start_dump_aon_clk_reg"));
-		WCN_INFO("mdbg dump aonclk %ld ok!\n", count);
+		pr_info("mdbg dump aonclk %ld ok!\n", count);
 	}
 	if (PRE_DIV_CLK_ADDR) {
 		count = mdbg_dump_data(PRE_DIV_CLK_ADDR,
 				       "start_dump_pre_div_clk_reg",
 				       PRE_DIV_CLK_SIZE,
 				       strlen("start_dump_pre_div_clk_reg"));
-		WCN_INFO("mdbg dump predivclk %ld ok!\n", count);
+		pr_info("mdbg dump predivclk %ld ok!\n", count);
 	}
 
 
 	count = mdbg_dump_data(DUMP_SDIO_ADDR, "start_dump_sdio_reg",
 			       DUMP_SDIO_ADDR_SIZE,
 			      strlen("start_dump_sdio_reg"));
-	WCN_INFO("mdbg dump sdio %ld ok!\n", count);
+	pr_info("mdbg dump sdio %ld ok!\n", count);
 
 	/* for dump wifi reg */
 	ret = check_wifi_power_domain_ison();
 	if (ret) {
-		WCN_ERR("********:-) :-) :-) :-)*********\n");
-		WCN_ERR("!!!mdbg wifi power domain is down!!\n");
+		pr_err("********:-) :-) :-) :-)*********\n");
+		pr_err("!!!mdbg wifi power domain is down!!\n");
 		goto next;
 	}
 
@@ -1279,7 +1281,7 @@ int mdbg_dump_mem(void)
 				       "start_dump_wifi_352K_RAM_reg",
 				       DUMP_WIFI_352K_RAM_ADDR_SIZE,
 				       strlen("start_dump_wifi_352K_RAM_reg"));
-		WCN_INFO("mdbg dump wifi %ld ok!\n", count);
+		pr_info("mdbg dump wifi %ld ok!\n", count);
 	}
 #endif
 
@@ -1289,7 +1291,7 @@ next:
 		count = mdbg_dump_data(DUMP_INTC_ADDR, "start_dump_intc_reg",
 			       DUMP_REG_SIZE,
 			       strlen("start_dump_intc_reg"));
-		WCN_INFO("mdbg dump intc %ld ok!\n", count);
+		pr_info("mdbg dump intc %ld ok!\n", count);
 	}
 
 	if (DUMP_SYSTIMER_ADDR) {
@@ -1297,79 +1299,79 @@ next:
 					"start_dump_systimer_reg",
 			       DUMP_REG_SIZE,
 			       strlen("start_dump_systimer_reg"));
-		WCN_INFO("mdbg dump systimer %ld ok!\n", count);
+		pr_info("mdbg dump systimer %ld ok!\n", count);
 	}
 
 	if (DUMP_WDG_ADDR) {
 		count = mdbg_dump_data(DUMP_WDG_ADDR, "start_dump_wdg_reg",
 			DUMP_REG_SIZE, strlen("start_dump_wdg_reg"));
-		WCN_INFO("mdbg dump wdg %ld ok!\n", count);
+		pr_info("mdbg dump wdg %ld ok!\n", count);
 	}
 
 	if (DUMP_APB_ADDR) {
 		count = mdbg_dump_data(DUMP_APB_ADDR, "start_dump_apb_reg",
 		DUMP_REG_SIZE, strlen("start_dump_apb_reg"));
-		WCN_INFO("mdbg dump apb %ld ok!\n", count);
+		pr_info("mdbg dump apb %ld ok!\n", count);
 	}
 
 	if (DUMP_DMA_ADDR) {
 		count = mdbg_dump_data(DUMP_DMA_ADDR, "start_dump_dma_reg",
 		DUMP_REG_SIZE, strlen("start_dump_dma_reg"));
-		WCN_INFO("mdbg dump dma %ld ok!\n", count);
+		pr_info("mdbg dump dma %ld ok!\n", count);
 	}
 
 	if (DUMP_AHB_ADDR) {
 		count = mdbg_dump_data(DUMP_AHB_ADDR, "start_dump_ahb_reg",
 			DUMP_REG_SIZE, strlen("start_dump_ahb_reg"));
-		WCN_INFO("mdbg dump ahb %ld ok!\n", count);
+		pr_info("mdbg dump ahb %ld ok!\n", count);
 	}
 
 	count = mdbg_dump_data(DUMP_FM_ADDR, "start_dump_fm_reg",
 		DUMP_FM_ADDR_SIZE, strlen("start_dump_fm_reg"));
-	WCN_INFO("mdbg dump fm %ld ok!\n", count);
+	pr_info("mdbg dump fm %ld ok!\n", count);
 
 	if (DUMP_WIFI_ADDR) {
 		count = mdbg_dump_data(DUMP_WIFI_ADDR, "start_dump_wifi_reg",
 			DUMP_WIFI_ADDR_SIZE, strlen("start_dump_wifi_reg"));
-		WCN_INFO("mdbg dump wifi %ld ok!\n", count);
+		pr_info("mdbg dump wifi %ld ok!\n", count);
 	}
 
 	if (DUMP_BT_CMD_ADDR != 0) {
 		count = mdbg_dump_data(DUMP_BT_CMD_ADDR,
 			"start_dump_bt_cmd_buf",
 		DUMP_BT_CMD_ADDR_SIZE, strlen("start_dump_bt_cmd_buf"));
-		WCN_INFO("mdbg dump bt cmd %ld ok!\n", count);
+		pr_info("mdbg dump bt cmd %ld ok!\n", count);
 	}
 
 	if (DUMP_BT_ADDR) {
 		count = mdbg_dump_data(DUMP_BT_ADDR, "start_dump_bt_reg",
 		DUMP_BT_ADDR_SIZE, strlen("start_dump_bt_reg"));
-		WCN_INFO("mdbg dump bt %ld ok!\n", count);
+		pr_info("mdbg dump bt %ld ok!\n", count);
 	}
 	if (BT_ACC_ADDR) {
 		count = mdbg_dump_data(BT_ACC_ADDR, "start_dump_bt_acc_reg",
 		BT_ACC_SIZE, strlen("start_dump_bt_acc_reg"));
-		WCN_INFO("mdbg dump btacc %ld ok!\n", count);
+		pr_info("mdbg dump btacc %ld ok!\n", count);
 	}
 	if (BT_JAL_ADDR) {
 		count = mdbg_dump_data(BT_JAL_ADDR, "start_dump_bt_jal_reg",
 		BT_JAL_SIZE, strlen("start_dump_bt_jal_reg"));
-		WCN_INFO("mdbg dump btjal %ld ok!\n", count);
+		pr_info("mdbg dump btjal %ld ok!\n", count);
 	}
 	if (BT_HAB_ADDR) {
 		count = mdbg_dump_data(BT_HAB_ADDR, "start_dump_bt_hab_reg",
 		BT_HAB_SIZE, strlen("start_dump_bt_hab_reg"));
-		WCN_INFO("mdbg dump bthab %ld ok!\n", count);
+		pr_info("mdbg dump bthab %ld ok!\n", count);
 	}
 	if (BT_LEJAL_ADDR) {
 		count = mdbg_dump_data(BT_LEJAL_ADDR, "start_dump_bt_lejal_reg",
 		BT_LEJAL_SIZE, strlen("start_dump_bt_lejal_reg"));
-		WCN_INFO("mdbg dump btlejal %ld ok!\n", count);
+		pr_info("mdbg dump btlejal %ld ok!\n", count);
 	}
 	if (BT_MODEM_ADDR) {
 		count = mdbg_dump_data(BT_MODEM_ADDR, "start_dump_bt_modem_reg",
 		BT_MODEM_SIZE, strlen("start_dump_bt_modem_reg"));
-		WCN_INFO("mdbg dump bt modem %ld ok!\n", count);
+		pr_info("mdbg dump bt modem %ld ok!\n", count);
 	}
 
 	check_bt_buffer_RW();
@@ -1379,70 +1381,70 @@ next:
 				       "start_dump_bt_cmd_buf_reg",
 				       BT_CMD_BUF_SIZE,
 				       strlen("start_dump_bt_cmd_buf_reg"));
-		WCN_INFO("mdbg dump bt_cmd buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_cmd buf %ld ok!\n", count);
 	}
 	if (BT_EVENT_BUF_ADDR) {
 		count = mdbg_dump_data(BT_EVENT_BUF_ADDR,
 				       "start_dump_bt_event_buf_reg",
 				       BT_EVENT_BUF_SIZE,
 				       strlen("start_dump_bt_event_buf_reg"));
-		WCN_INFO("mdbg dump btevent buf %ld ok!\n", count);
+		pr_info("mdbg dump btevent buf %ld ok!\n", count);
 	}
 	if (BT_LMP_TX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_LMP_TX_BUF_ADDR,
 				       "start_dump_bt_lmp_tx_buf_reg",
 				       BT_LMP_TX_BUF_SIZE,
 				       strlen("start_dump_bt_lmp_tx_buf_reg"));
-		WCN_INFO("mdbg dump bt_lmp_tx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_lmp_tx_buf %ld ok!\n", count);
 	}
 	if (BT_LMP_RX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_LMP_RX_BUF_ADDR,
 				       "start_dump_bt_lmp_rx_buf_reg",
 				       BT_LMP_RX_BUF_SIZE,
 				       strlen("start_dump_bt_lmp_rx_buf_reg"));
-		WCN_INFO("mdbg dump bt_lmp_rx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_lmp_rx_buf %ld ok!\n", count);
 	}
 	if (BT_ACL_TX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_ACL_TX_BUF_ADDR,
 				       "start_dump_bt_acl_tx_buf_reg",
 				       BT_ACL_TX_BUF_SIZE,
 				       strlen("start_dump_bt_acl_tx_buf_reg"));
-		WCN_INFO("mdbg dump bt_acl_tx_buf%ld ok!\n", count);
+		pr_info("mdbg dump bt_acl_tx_buf%ld ok!\n", count);
 	}
 	if (BT_ACL_RX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_ACL_RX_BUF_ADDR,
 				       "start_dump_bt_acl_rx_buf_reg",
 				       BT_ACL_RX_BUF_SIZE,
 				       strlen("start_dump_bt_acl_rx_buf_reg"));
-		WCN_INFO("mdbg dump bt_acl_rx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_acl_rx_buf %ld ok!\n", count);
 	}
 	if (BT_SCO_TX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_SCO_TX_BUF_ADDR,
 				       "start_dump_bt_sco_tx_buf_reg",
 				       BT_SCO_TX_BUF_SIZE,
 				       strlen("start_dump_bt_sco_tx_buf_reg"));
-		WCN_INFO("mdbg dump bt_sco_tx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_sco_tx_buf %ld ok!\n", count);
 	}
 	if (BT_SCO_RX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_SCO_RX_BUF_ADDR,
 				       "start_dump_bt_sco_rx_buf_reg",
 				       BT_SCO_RX_BUF_SIZE,
 				       strlen("start_dump_bt_sco_rx_buf_reg"));
-		WCN_INFO("mdbg dump bt_sco_rx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_sco_rx_buf %ld ok!\n", count);
 	}
 	if (BT_BB_TX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_BB_TX_BUF_ADDR,
 				       "start_dump_bt_bb_tx_buf_reg",
 				       BT_BB_TX_BUF_SIZE,
 				       strlen("start_dump_bt_bb_tx_buf_reg"));
-		WCN_INFO("mdbg dump bt_bb_tx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_bb_tx_buf %ld ok!\n", count);
 	}
 	if (BT_BB_RX_BUF_ADDR) {
 		count = mdbg_dump_data(BT_BB_RX_BUF_ADDR,
 				       "start_dump_bt_bb_rx_buf_reg",
 				       BT_BB_RX_BUF_SIZE,
 				       strlen("start_dump_bt_bb_rx_buf_reg"));
-		WCN_INFO("mdbg dump bt_bb_rx_buf %ld ok!\n", count);
+		pr_info("mdbg dump bt_bb_rx_buf %ld ok!\n", count);
 	}
 
 end:
@@ -1450,7 +1452,7 @@ end:
 	msleep(40);
 
 	mdbg_dump_str(WCN_DUMP_END_STRING, strlen(WCN_DUMP_END_STRING));
-	WCN_INFO("mdbg dump memory finish\n");
+	pr_info("mdbg dump memory finish\n");
 
 	return 0;
 }

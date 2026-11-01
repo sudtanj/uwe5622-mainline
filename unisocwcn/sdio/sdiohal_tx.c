@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include "sdiohal.h"
 
 #define SDIOHAL_TX_RETRY_MAX 3

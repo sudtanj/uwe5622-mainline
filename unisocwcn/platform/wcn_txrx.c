@@ -9,6 +9,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  */
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <wcn_bus.h>
 
 #include "bufring.h"
@@ -35,7 +37,7 @@ bool mdbg_rx_count_change(void)
 {
 	rx_count = sprdwcn_bus_get_rx_total_cnt();
 
-	WCN_INFO("rx_count:0x%llx rx_count_last:0x%llx\n",
+	pr_info("rx_count:0x%llx rx_count_last:0x%llx\n",
 		rx_count, rx_count_last);
 
 	if ((rx_count == 0) && (rx_count_last == 0)) {
@@ -70,7 +72,7 @@ static long int mdbg_comm_write(char *buf,
 	int num = 1;
 
 	if (unlikely(marlin_get_module_status() != true)) {
-		WCN_ERR("WCN module have not open\n");
+		pr_err("WCN module have not open\n");
 		return -EIO;
 	}
 	send_buf = kzalloc(len + PUB_HEAD_RSV + 1, GFP_KERNEL);
@@ -87,12 +89,12 @@ static long int mdbg_comm_write(char *buf,
 		int ret;
 
 		/* for arm log to pc */
-		WCN_INFO("smp len:%ld,str:%s\n", len, str);
+		pr_info("smp len:%ld,str:%s\n", len, str);
 		str[sizeof(SMP_HEAD_STR)] = 0;
 		ret = kstrtol(&str[sizeof(SMP_HEAD_STR) - 1], 10,
 							&ring_dev->flag_smp);
-		WCN_INFO("smp ret:%d, flag_smp:%ld\n", ret,
-			 ring_dev->flag_smp);
+		pr_info("smp ret:%d, flag_smp:%ld\n", ret,
+			ring_dev->flag_smp);
 		kfree(send_buf);
 	} else {
 		if (!sprdwcn_bus_list_alloc(
@@ -120,7 +122,7 @@ static void mdbg_ring_rx_task(struct work_struct *work)
 #endif
 
 	if (unlikely(!ring_dev)) {
-		WCN_ERR("ring_dev is NULL\n");
+		pr_err("ring_dev is NULL\n");
 		return;
 	}
 
@@ -130,7 +132,7 @@ static void mdbg_ring_rx_task(struct work_struct *work)
 	if (rx) {
 		list_del(&rx->entry);
 	} else {
-		WCN_ERR("tasklet something err\n");
+		pr_err("tasklet something err\n");
 		spin_unlock_bh(&ring_dev->rw_lock);
 		return;
 	}
@@ -167,7 +169,7 @@ int mdbg_log_read(int channel, struct mbuf_t *head,
 		mutex_lock(&ring_dev->mdbg_read_mutex);
 		rx = kmalloc(sizeof(*rx), GFP_KERNEL);
 		if (!rx) {
-			WCN_ERR("mdbg ring low memory\n");
+			pr_err("mdbg ring low memory\n");
 			mutex_unlock(&ring_dev->mdbg_read_mutex);
 			sprdwcn_bus_push_list(channel, head, tail, num);
 			return 0;
@@ -257,7 +259,7 @@ int mdbg_ring_init(void)
 
 	ring_dev->ring = mdbg_ring_alloc(MDBG_RX_RING_SIZE);
 	if (!(ring_dev->ring)) {
-		WCN_ERR("Ring malloc error.");
+		pr_err("Ring malloc error.");
 		return -MDBG_ERR_MALLOC_FAIL;
 	}
 

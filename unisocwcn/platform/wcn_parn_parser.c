@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/delay.h>
 #include <linux/dirent.h>
 #include <linux/fcntl.h>
@@ -104,12 +106,12 @@ static int load_fstab_conf(const char *p_path, char *WCN_PATH)
 
 	match_flag = false;
 	p = line;
-	WCN_INFO("Attempt to load conf from %s\n", p_path);
+	pr_info("Attempt to load conf from %s\n", p_path);
 
 	p_file = wcn_filp_open(p_path, O_RDONLY, 0);
 	if (IS_ERR(p_file)) {
-		WCN_ERR("open file %s error not find\n",
-			p_path);
+		pr_err("open file %s error not find\n",
+		       p_path);
 		return PTR_ERR(p_file);
 	}
 
@@ -128,7 +130,7 @@ static int load_fstab_conf(const char *p_path, char *WCN_PATH)
 					"%.*swcnmodem",
 					(int)(temp - p_name), p_name);
 				if (len >= WCN_FIRMWARE_PATH_MAX) {
-					WCN_ERR("path truncated: %s\n", p_name);
+					pr_err("path truncated: %s\n", p_name);
 					continue;
 				}
 				match_flag = true;
@@ -167,7 +169,7 @@ static int find_callback(void *ctx, const char *name, int namlen,
 	if (tmp == 0) {
 		if (sizeof(fstab_name) > strlen(fstab_name) + strlen(name) + 2)
 			strcat(fstab_name, name);
-		WCN_INFO("full fstab name %s\n", fstab_name);
+		pr_info("full fstab name %s\n", fstab_name);
 	}
 
 	return 0;
@@ -183,14 +185,14 @@ int parse_firmware_path(char *firmware_path)
 	u32 loop;
 	struct file *file1;
 
-	WCN_INFO("%s entry\n", __func__);
+	pr_info("%s entry\n", __func__);
 	for (loop = 0; loop < FSTAB_PATH_NUM; loop++) {
 		file1 = NULL;
 		WCN_DEBUG("dir:%s: loop:%d\n", fstab_dir[loop], loop);
 		file1 = wcn_filp_open(fstab_dir[loop], O_DIRECTORY, 0);
 		if (IS_ERR(file1)) {
-			WCN_ERR("%s open error:%d\n",
-				fstab_dir[loop], (int)IS_ERR(file1));
+			pr_err("%s open error:%d\n",
+			       fstab_dir[loop], (int)IS_ERR(file1));
 			continue;
 		}
 		memset(fstab_name, 0, sizeof(fstab_name));
@@ -204,16 +206,16 @@ int parse_firmware_path(char *firmware_path)
 		iterate_dir(file1, &ctx);
 		fput(file1);
 		ret = load_fstab_conf(fstab_name, firmware_path);
-		WCN_INFO("%s:load conf ret %d\n", fstab_dir[loop], ret);
+		pr_info("%s:load conf ret %d\n", fstab_dir[loop], ret);
 		if (!ret) {
-			WCN_INFO("[%s]:%s\n", fstab_name, firmware_path);
+			pr_info("[%s]:%s\n", fstab_name, firmware_path);
 			return 0;
 		}
 	}
 	/* for yunos */
 	ret = load_fstab_conf(ETC_FSTAB, firmware_path);
 	if (!ret) {
-		WCN_INFO(ETC_FSTAB":%s !\n", firmware_path);
+		pr_info(ETC_FSTAB":%s !\n", firmware_path);
 		return 0;
 	}
 

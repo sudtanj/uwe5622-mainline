@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>

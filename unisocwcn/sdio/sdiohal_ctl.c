@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "WCN: " fmt
+
 #include <linux/debugfs.h>
 #include <linux/file.h>
 #include <linux/interrupt.h>
