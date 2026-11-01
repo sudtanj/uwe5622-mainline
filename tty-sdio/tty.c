@@ -47,13 +47,6 @@
 
 static unsigned int log_level = MTTY_LOG_LEVEL_NONE;
 
-#define BT_VER(fmt, ...)						\
-	do {										\
-		if (log_level == MTTY_LOG_LEVEL_VER)	\
-			pr_err(fmt, ##__VA_ARGS__);			\
-	} while (0)
-
-
 static struct semaphore sem_id;
 
 struct rx_data {
@@ -267,9 +260,10 @@ static int mtty_rx_cb(int chn, struct mbuf_t *head, struct mbuf_t *tail, int num
 	block_size = ((head->buf[2] & 0x7F) << 9) + (head->buf[1] << 1) + (head->buf[0] >> 7);
 
 	if (log_level == MTTY_LOG_LEVEL_VER) {
-		BT_VER("%s dump head: %d, channel: %d, num: %d\n", __func__, BT_SDIO_HEAD_LEN, chn, num);
+		pr_debug("%s dump head: %d, channel: %d, num: %d\n",
+			 __func__, BT_SDIO_HEAD_LEN, chn, num);
 		hex_dump_block((unsigned char *)head->buf, BT_SDIO_HEAD_LEN);
-		BT_VER("%s dump block %d\n", __func__, block_size);
+		pr_debug("%s dump block %d\n", __func__, block_size);
 		hex_dump_block((unsigned char *)head->buf + BT_SDIO_HEAD_LEN, block_size);
 	}
 	if (is_user_debug) {
@@ -286,15 +280,15 @@ static int mtty_rx_cb(int chn, struct mbuf_t *head, struct mbuf_t *tail, int num
 
 	if (mtty_dev != NULL) {
 		if (!work_pending(&mtty_dev->bt_rx_work)) {
-			BT_VER("%s tty_insert_flip_string", __func__);
+			pr_debug("%s tty_insert_flip_string\n", __func__);
 			ret = tty_insert_flip_string(mtty_dev->port,
 				(unsigned char *)head->buf + BT_SDIO_HEAD_LEN,
 				block_size);   // -BT_SDIO_HEAD_LEN
-			BT_VER("%s ret: %d, len: %d\n", __func__, ret, block_size);
+			pr_debug("%s ret: %d, len: %d\n", __func__, ret, block_size);
 			if (ret)
 				tty_flip_buffer_push(mtty_dev->port);
 			if (ret == (block_size)) {
-				BT_VER("%s send success", __func__);
+				pr_debug("%s send success\n", __func__);
 				sprdwcn_bus_push_list(chn, head, tail, num);
 				return 0;
 			}
@@ -343,14 +337,14 @@ static int mtty_tx_cb(int chn, struct mbuf_t *head, struct mbuf_t *tail, int num
 {
 	int i;
 	struct mbuf_t *pos = NULL;
-	BT_VER("%s channel: %d, head: %p, tail: %p num: %d\n", __func__, chn, head, tail, num);
+	pr_debug("%s channel: %d, head: %p, tail: %p num: %d\n", __func__, chn, head, tail, num);
 	pos = head;
 	for (i = 0; i < num; i++, pos = pos->next) {
 		kfree(pos->buf);
 		pos->buf = NULL;
 	}
 	if ((sprdwcn_bus_list_free(chn, head, tail, num)) == 0) {
-		BT_VER("%s sprdwcn_bus_list_free() success\n", __func__);
+		pr_debug("%s sprdwcn_bus_list_free() success\n", __func__);
 		up(&sem_id);
 	} else
 		pr_err("%s sprdwcn_bus_list_free() fail\n", __func__);
@@ -418,13 +412,13 @@ static int mtty_write(struct tty_struct *tty,
 	struct mbuf_t *tx_head = NULL, *tx_tail = NULL;
 	unsigned char *block = NULL;
 
-	BT_VER("%s +++\n", __func__);
+	pr_debug("%s +++\n", __func__);
 
 	if (is_user_debug) {
 		bt_host_data_save(buf, count, BT_DATA_OUT);
 	}
 	if (log_level == MTTY_LOG_LEVEL_VER) {
-		BT_VER("%s dump size: %d\n", __func__, count);
+		pr_debug("%s dump size: %d\n", __func__, count);
 		hex_dump_block((unsigned char *)buf, count);
 	}
 
@@ -458,7 +452,7 @@ static int mtty_write(struct tty_struct *tty,
 		return -EBUSY;
 	}
 
-	BT_VER("%s ---\n", __func__);
+	pr_debug("%s ---\n", __func__);
 	return count;
 }
 
@@ -803,7 +797,7 @@ int marlin_sdio_write(const unsigned char *buf, int count)
 		return -EBUSY;
 	}
 
-	BT_VER("%s ---\n", __func__);
+	pr_debug("%s ---\n", __func__);
 
 	return count;
 }
