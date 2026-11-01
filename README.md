@@ -15,7 +15,7 @@ possible.
 | Code | Imported from [armbian/uwe5622](https://github.com/armbian/uwe5622) with full history. Vendor-derived; large and noisy. |
 | Builds against | longterm 6.18 / 6.12, latest stable, mainline: checked weekly by CI |
 | Tested on hardware | **Not yet** from this repository. Armbian's tree is in daily use on Zero 2/Zero 3 images. |
-| Rewrite | Phase 1 done: dead code removed (`unisocwcn` halved), `W=1` and sparse clean with a CI gate. Plan in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Rewrite | Phase 1 complete: dead code removed (`unisocwcn` halved), vendor logging moved to `pr_*()` (debug output through dynamic debug), `W=1` and sparse clean with a CI gate, checkpatch baseline recorded for Phase 2. Plan in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 
 Chip capabilities: 2.4 GHz 802.11b/g/n, Bluetooth classic + BLE, GNSS (unused
 here). The chip is attached over SDIO on the Zero 3.
@@ -72,8 +72,9 @@ ships it.
 `.github/workflows/build.yml` asks kernel.org which versions are current and
 builds the modules against each of them on every push, pull request and every
 Monday. The weekly run is the early warning for kernel API changes. The job
-also reports `W=1` warning and `sparse` counts (informational until the
-rewrite drives them down) and runs `checkpatch` on the diff of each change.
+also builds with `W=1` and `sparse` and fails on any warning not listed in
+`.github/known-warnings.txt`, and runs `checkpatch` on the diff of each change
+(informational).
 
 ## Syncing with Armbian
 

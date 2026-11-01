@@ -172,7 +172,7 @@ SDIO, so a driver on those interfaces has to be C.
   kernels (`scripts/build-against-kernel.sh`), compiles the DT overlay, and
   reports warning/sparse counts.
 
-### Phase 1 — carve out the Allwinner SDIO build
+### Phase 1 — carve out the Allwinner SDIO build (done)
 
 Delete what the Allwinner SDIO configuration never compiles, then drop the
 `#ifdef` forest that remains. Each step is verified by CI; nothing in this
@@ -234,10 +234,105 @@ hardware test rather than a proof from the build map:
 - `platform/rf/rf.h`: `wcn_boot.c` uses `struct wifi_cali_t` and
   `struct wifi_config_t` from it.
 
-Still to do in this phase:
+Logging moved to kernel `pr_*()` (commits `6aed7dd`..`f3afa20`), see
+"Logging" below. Vendor macro call sites before → after:
 
-- Replace vendor logging macros with `dev_*`/`pr_*`
-- Make `checkpatch --strict` clean on touched files
+| Macro | Before | After |
+|---|---|---|
+| `WCN_INFO` / `WCN_ERR` | 321 / 232 | 0 (→ `pr_info` / `pr_err`) |
+| `WCN_DEBUG`, `MDBG_LOG`, `MDBG_FUNC_ENTERY` | 59, 30, 2 | 0 (→ `pr_debug`; 13 trace-style ones dropped) |
+| `MDBG_ERR` | 13 | 0 (→ `pr_err`) |
+| `BT_VER` (tty-sdio) | 11 | 0 (→ `pr_debug`) |
+| `wl_err` / `wl_info` / `wl_debug` / `wl_warn` / `wl_err_ratelimited` | 343 / 238 / 97 / 6 / 5 | unchanged: kept as thin `pr_*()` wrappers because their run-time gating is user-visible |
+
+No message that used to be emitted stopped being emitted, and no message that
+was silent by default became visible by default. Visible differences in the
+log:
+
+- `unisocwcn`: every `pr_*()` line now starts with `WCN: ` (`pr_fmt`). Former
+  `WCN_ERR()` lines said `WCN_ERR: `, former `MDBG_ERR()` lines
+  `WCN_MDBG_ERR: `; direct `pr_*()` calls and the `sdiohal_*`, `SLP_MGR_*`,
+  `MEM_PD_MGR_*` wrappers had no `WCN: ` before (so they now read e.g.
+  `WCN: sdiohal:...`). `MDBG_ERR()` was `KERN_INFO`, now `KERN_ERR`. Three
+  messages lost a blank before the newline; a few spell the function name via
+  `__func__` (same text).
+- `unisocwifi`: the `sprdwl:` text is unchanged. The level tag now follows the
+  macro (`wl_warn` → `KERN_WARNING`, `wl_info`/`wl_debug` → `KERN_INFO`; all
+  were `KERN_ERR`), `wl_err_ratelimited` is `KERN_ERR` instead of the default
+  level, and the few direct `pr_err`/`pr_info` calls gained the `sprdwl:`
+  prefix.
+- `tty-sdio`: unchanged (no `pr_fmt` added, so its existing output keeps its
+  text).
+
+### Logging
+
+| Module | Prefix (`pr_fmt`) | Run-time control |
+|---|---|---|
+| `uwe5622_bsp_sdio` | `WCN: ` | `pr_err`/`pr_info` always print; `pr_debug` via dynamic debug |
+| `sprdwl_ng` | `sprdwl:` | `wl_*()` gated by `sprdwl_debug_level`, see below; `wl_debug()` also via dynamic debug |
+| `sprdbt_tty` | none | `pr_err`/`pr_info` always print; `pr_debug` via dynamic debug |
+
+Debug output (needs `CONFIG_DYNAMIC_DEBUG` and debugfs mounted):
+
+```sh
+echo 'module uwe5622_bsp_sdio +p' > /sys/kernel/debug/dynamic_debug/control
+echo 'module sprdwl_ng +p'        > /sys/kernel/debug/dynamic_debug/control
+echo 'module sprdbt_tty +p'       > /sys/kernel/debug/dynamic_debug/control
+# add "fl" (e.g. +pfl) for the function name and line number that the old
+# WCN_DEBUG/MDBG_LOG macros used to print
+```
+
+Kept run-time levels:
+
+- `sprdwl_ng`: `sprdwl_debug_level` (0 none, 1 error = default, 2 warn,
+  3 info, 4 debug). Set with the `debug_level` module parameter
+  (`/sys/module/sprdwl_ng/parameters/debug_level`), the `log_level` key in
+  `wifi_dbg.ini`, or `echo debug_level=N > /sys/kernel/debug/sprdwl_debug/log_level`.
+  `wl_err/warn/info/debug()` print only when the level is at least theirs;
+  below level 4, `wl_debug()` call sites can additionally be enabled through
+  dynamic debug. `wl_ndev_log()` and `wl_hex_dump()` are gated the same way
+  but still print at `KERN_ERR` (Phase 2).
+- `uwe5622_bsp_sdio`: the `sdiohal_normal/debug/pr_list/pr_data/pr_perf()`
+  wrappers stay gated by the debugfs `sdiohal_log_level` bitmask.
+
+Removed because nothing could ever change them: `wcn_print_level` (gated
+`WCN_DEBUG`; never written, not a parameter), `MDBG_DEBUG_MODE` (compile-time
+0) and the `log_level` gate of `BT_VER` in tty-sdio (static, never written; the
+variable is still read by three dead hex-dump blocks, left for Phase 2).
+
+### checkpatch baseline
+
+`checkpatch.pl --no-tree --strict -f` (torvalds/master, 2026-11-01) on every
+`.c`/`.h` file at the end of Phase 1, as the starting point for Phase 2:
+
+| Module | Files | Errors | Warnings | Checks |
+|---|---|---|---|---|
+| `unisocwcn/` | 51 | 7 | 370 | 1 094 |
+| `unisocwifi/` | 57 | 13 | 809 | 1 192 |
+| `tty-sdio/` | 12 | 1 | 115 | 151 |
+| total | 120 | 21 | 1 294 | 2 437 |
+
+Largest groups: `PARENTHESIS_ALIGNMENT` (784 checks), `CONSTANT_COMPARISON`
+(344 warnings, Yoda/`KERNEL_VERSION` tests), `LINUX_VERSION_CODE` (294
+warnings), `UNNECESSARY_PARENTHESES` (317 checks), `PREFER_KERNEL_TYPES` (268
+checks), missing SPDX tags (120 warnings, one per file), trace-style logging
+(101 warnings). The errors are spacing, brace placement, trailing statements,
+two complex macros and three zero-length arrays (`wcn_dump.c`, `qos.h`,
+`vendor.h`).
+
+The lines changed by the logging conversion have no checkpatch errors, and
+only two kinds of warning are left on them, on purpose:
+
+- trace-style `pr_info("%s ...", __func__)` messages. They are printed today,
+  so the only fixes are removing or demoting them.
+- the missing SPDX tag, reported on files whose first line moved. Adding a
+  license tag states a license for each file, so it belongs in its own
+  deliberate commit, not in a style fix.
+
+The CI "checkpatch (diff)" job runs on `git diff -U0`, so for a changed macro
+body it can report `COMPLEX_MACRO` against the `wl_*` wrappers in `sprdwl.h`.
+That is a false positive caused by the missing context: the whole-file run
+above reports no error there.
 
 ### Phase 1b — `W=1` and sparse clean (done)
 
@@ -271,6 +366,13 @@ change):
   pieces (command encode/decode, TLV parsing) written so they can run under KUnit
 - Bluetooth: evaluate exposing HCI through the kernel's `hci_uart`/`serdev`-style
   interface instead of a raw TTY plus an out-of-tree `hciattach` binary
+- Logging follow-ups: `dev_*`/`netdev_*` once a `struct device` is at hand
+  everywhere; decide whether the user-visible `sprdwl_debug_level` gate stays
+  or `wl_*` become plain `pr_*`; give `wl_ndev_log()`/`wl_hex_dump()` real
+  levels; fold `sdiohal_*`, `SLP_MGR_*`, `MEM_PD_MGR_*` and
+  `wcn_pr_daterate()` into `pr_*`; remove or demote the trace-style
+  `pr_info()` messages; `pr_fmt` for tty-sdio; SPDX tags; the remaining
+  checkpatch baseline above
 
 ### Phase 3 — hardening and test support
 
