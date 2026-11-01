@@ -1,0 +1,5 @@
+# Tests that fail because of a known driver bug, one glob per line, matched
+# against the TAP test description. Matching tests are reported as
+# "not ok ... # TODO" and do not fail CI; a matching test that passes is
+# flagged as an unexpected pass so the entry can be removed. Every entry
+# names the bug it stands for (see docs/TESTING.md, "Known driver bugs").

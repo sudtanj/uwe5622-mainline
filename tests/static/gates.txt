@@ -1,0 +1,7 @@
+# Static-analysis gates: "<tool> <class> <max-count>".
+#
+# Findings start out informational. Once a class is at zero (or a known
+# count), it is listed here and may not get worse. Class names are those in
+# out-<tool>/classes.txt: clang warning flag (e.g. -Wunused-variable) or
+# "error", smatch-warn / smatch-error, the coccinelle script path
+# (e.g. api/kfree_mismatch.cocci), the cppcheck message id.

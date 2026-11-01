@@ -1,0 +1,111 @@
+# Tests beyond "does it build": static analysis, the device-tree overlay
+# against the real Zero 3 DTB, and QEMU runs of the modules under a debug
+# kernel shaped like the Orange Pi Zero 3 (4x Cortex-A53, 1 or 2 GB).
+# What each job proves and what it cannot is in docs/TESTING.md.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 4 * * 1" # Mondays 04:41 UTC, after build.yml
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: "Kernel version to test against (default: newest 6.18.x longterm)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read # metrics comparison downloads the previous main run's artifact
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lts:
+    name: Pick kernel version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.pick.outputs.version }}
+    steps:
+      - id: pick
+        env:
+          WANT: ${{ inputs.kernel_version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WANT" ]; then v=$WANT; else
+            v=$(curl -fsSL --retry 5 --retry-all-errors https://www.kernel.org/releases.json \
+              | jq -r '[.releases[] | select(.moniker == "longterm" and (.version | startswith("6.18.")))][0].version')
+          fi
+          [ -n "$v" ] && [ "$v" != null ]
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Testing against linux-$v" >> "$GITHUB_STEP_SUMMARY"
+
+  static:
+    name: static (${{ matrix.tool }})
+    needs: lts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [clang, smatch, cocci, cppcheck]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          pkgs="flex bison libssl-dev libelf-dev bc"
+          case "${{ matrix.tool }}" in
+            clang) pkgs="$pkgs clang lld llvm" ;;
+            smatch) pkgs="$pkgs gcc-aarch64-linux-gnu libsqlite3-dev sqlite3 libdbd-sqlite3-perl libtry-tiny-perl" ;;
+            cocci) pkgs="$pkgs coccinelle" ;;
+            cppcheck) pkgs="cppcheck" ;;
+          esac
+          sudo apt-get install -y --no-install-recommends $pkgs
+      - name: Run ${{ matrix.tool }}
+        run: tests/static/run.sh ${{ matrix.tool }} "${{ needs.lts.outputs.version }}" "$RUNNER_TEMP/w"
+      - name: Summary
+        if: always()
+        run: |
+          out="$RUNNER_TEMP/w/out-${{ matrix.tool }}"
+          [ -f "$out/summary.md" ] && cat "$out/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          tests/lib/tap-summary.sh "static: ${{ matrix.tool }} gates" "$out/static-${{ matrix.tool }}.tap"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: static-${{ matrix.tool }}
+          path: |
+            ${{ runner.temp }}/w/out-${{ matrix.tool }}/*.txt
+            ${{ runner.temp }}/w/out-${{ matrix.tool }}/*.log
+            ${{ runner.temp }}/w/out-${{ matrix.tool }}/*.tap
+
+  dt:
+    name: device tree (Zero 3 overlay)
+    needs: lts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu flex bison \
+            device-tree-compiler python3-pip python3-venv libyaml-dev
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q dtschema
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: Overlay checks
+        run: tests/dt/check-overlay.sh "${{ needs.lts.outputs.version }}" "$RUNNER_TEMP/w"
+      - name: Summary
+        if: always()
+        run: tests/lib/tap-summary.sh "device tree" "$RUNNER_TEMP/w/out-dt/dt.tap"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dt
+          path: ${{ runner.temp }}/w/out-dt/
