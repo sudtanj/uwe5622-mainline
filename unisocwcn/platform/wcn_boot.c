@@ -380,7 +380,7 @@ unsigned int marlin_get_wcn_chipid(void)
 	if (likely(chip_id))
 		return chip_id;
 
-	WCN_DEBUG("%s enter.\n", __func__);
+	pr_debug("%s enter.\n", __func__);
 
 	ret = sprdwcn_bus_reg_read(CHIPID_REG, &chip_id, 4);
 	if (ret < 0) {
@@ -427,7 +427,7 @@ enum wcn_chip_model wcn_get_chip_model(void)
 		chip_model = WCN_CHIP_MARLIN3E;
 	else
 		chip_model = WCN_CHIP_INVALID;
-	WCN_DEBUG("%s: chip_model: %s\n", __func__, chip_model_str[chip_model]);
+	pr_debug("%s: chip_model: %s\n", __func__, chip_model_str[chip_model]);
 
 	return chip_model;
 }
@@ -461,7 +461,7 @@ enum wcn_chip_id_type wcn_get_chip_type(void)
 		chip_type = WCN_CHIP_ID_INVALID;
 	else
 		chip_type = (chip_id & 0xF) + 1;
-	WCN_DEBUG("%s: chip_type: %s\n", __func__, chip_type_str[chip_type]);
+	pr_debug("%s: chip_type: %s\n", __func__, chip_type_str[chip_type]);
 
 	return chip_type;
 }
@@ -521,7 +521,7 @@ const char *wcn_get_chip_name(void)
 	sprintf((char *)(wcn_chip_name + pos), "0x%x", chip_id);
 
 out:
-	WCN_DEBUG("%s: chip_name: %s\n", __func__, wcn_chip_name);
+	pr_debug("%s: chip_name: %s\n", __func__, wcn_chip_name);
 	return wcn_chip_name;
 }
 EXPORT_SYMBOL_GPL(wcn_get_chip_name);
@@ -803,12 +803,12 @@ static char *load_firmware_data_path(const char *path, loff_t offset,
 	char *data = NULL;
 	struct file *file;
 
-	WCN_DEBUG("%s Enter\n", __func__);
+	pr_debug("%s Enter\n", __func__);
 	file = wcn_filp_open(path, O_RDONLY, 0);
 	for (i = 1; i <= opn_num_max; i++) {
 		if (IS_ERR(file)) {
-			WCN_DEBUG("%s: try open file %s,count_num:%d\n",
-				  __func__, path, i);
+			pr_debug("%s: try open file %s,count_num:%d\n",
+				 __func__, path, i);
 			ssleep(1);
 			file = wcn_filp_open(path, O_RDONLY, 0);
 		} else
@@ -819,8 +819,8 @@ static char *load_firmware_data_path(const char *path, loff_t offset,
 		       __func__, path);
 		return NULL;
 	}
-	WCN_DEBUG("marlin %s open image file sucessfully\n",
-		  __func__);
+	pr_debug("marlin %s open image file sucessfully\n",
+		 __func__);
 	size = imag_size;
 	buffer = vmalloc(size);
 	if (!buffer) {
@@ -842,7 +842,7 @@ static char *load_firmware_data_path(const char *path, loff_t offset,
 		}
 	} while ((read_len > 0) && (size > 0));
 	fput(file);
-	WCN_DEBUG("%s finish read_Len:%d\n", __func__, read_len);
+	pr_debug("%s finish read_Len:%d\n", __func__, read_len);
 #if KERNEL_VERSION(4, 14, 0) > LINUX_VERSION_CODE
 	/* kernel_read return value changed. */
 	if (read_len <= 0)
@@ -960,7 +960,7 @@ load_fw:
 						 FIRMWARE_MAX_SIZE);
 		if (!buffer) {
 			load_fw_cnt++;
-			WCN_DEBUG("%s buff is NULL\n", __func__);
+			pr_debug("%s buff is NULL\n", __func__);
 			if (load_fw_cnt < WCN_FW_MAX_PATH_NUM) {
 				sprintf(BTWF_FIRMWARE_PATH, "%s%s",
 					wcn_fw_path[load_fw_cnt],
@@ -1135,7 +1135,7 @@ static char *gnss_load_firmware_data(unsigned long int imag_size)
 {
 	char *buf;
 
-	MDBG_LOG("%s entry\n", __func__);
+	pr_debug("%s entry\n", __func__);
 	if (gnss_ops && (gnss_ops->set_file_path))
 		gnss_ops->set_file_path(&GNSS_FIRMWARE_PATH[0]);
 	else
@@ -1248,7 +1248,7 @@ static irqreturn_t marlin_bt_wake_int_isr(int irq, void *para)
 	static int bt_wake_cnt;
 
 	bt_wake_cnt++;
-	WCN_DEBUG("bt_wake_irq_cnt %d\n", bt_wake_cnt);
+	pr_debug("bt_wake_irq_cnt %d\n", bt_wake_cnt);
 	return IRQ_HANDLED;
 }
 
@@ -1510,7 +1510,7 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	else
 		sprintf(BTWF_FIRMWARE_PATH, "%s%s", wcn_fw_path[0],
 			WCN_FW_NAME);
-	WCN_DEBUG("btwf firmware path is %s\n", BTWF_FIRMWARE_PATH);
+	pr_debug("btwf firmware path is %s\n", BTWF_FIRMWARE_PATH);
 
 	ret = of_property_read_string(np, "unisoc,gnss-file-name",
 				      (const char **)&marlin_dev->gnss_path);
@@ -1520,7 +1520,7 @@ static int marlin_parse_dt(struct platform_device *pdev)
 	}
 #else
 	sprintf(BTWF_FIRMWARE_PATH, "%s%s", wcn_fw_path[0], WCN_FW_NAME);
-	WCN_DEBUG("btwf firmware path is %s\n", BTWF_FIRMWARE_PATH);
+	pr_debug("btwf firmware path is %s\n", BTWF_FIRMWARE_PATH);
 #endif /* end of CONFIG_WCN_PARSE_DTS */
 
 #ifdef CONFIG_WCN_PARSE_DTS
@@ -1860,13 +1860,13 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	pr_info("sdio_config vendor:[keeppwr, reset sdio after resume]\n");
 #else
 	sdio_cfg.cfg.vendor_id = WCN_VENDOR_DEFAULT;
-	WCN_DEBUG("sdio_config vendor:[default]\n");
+	pr_debug("sdio_config vendor:[default]\n");
 #endif
 
 	/* bit[4]: sdio_rx_mode: 0: adma; 1: sdma */
 	if (sprdwcn_bus_get_rx_mode()) {
 		sdio_cfg.cfg.sdio_rx_mode = 0;
-		WCN_DEBUG("sdio_config rx mode:[adma]\n");
+		pr_debug("sdio_config rx mode:[adma]\n");
 	} else {
 		sdio_cfg.cfg.sdio_rx_mode = 1;
 		pr_info("sdio_config rx mode:[sdma]\n");
@@ -1877,7 +1877,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 		sdio_cfg.cfg.sdio_blk_size = 1;
 		pr_info("sdio_config blksize:[512]\n");
 	} else
-		WCN_DEBUG("sdio_config blksize:[840]\n");
+		pr_debug("sdio_config blksize:[840]\n");
 
 	/*
 	 * bit[8]: bt_wake_host_en: 0: disable, 1: enable
@@ -1891,7 +1891,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	 */
 	if (marlin_get_bt_wl_wake_host_en() & BIT(BT_WAKE_HOST)) {
 		sdio_cfg.cfg.bt_wake_host_en = 1;
-		WCN_DEBUG("sdio_config bt_wake_host:[en]\n");
+		pr_debug("sdio_config bt_wake_host:[en]\n");
 		sdio_cfg.cfg.bt_wake_host_trigger_type = 3;
 		pr_info("sdio_config bt_wake_host trigger:[high]\n");
 	}
@@ -1932,7 +1932,7 @@ static void marlin_send_sdio_config_to_cp_vendor(void)
 	 */
 	if (marlin_get_bt_wl_wake_host_en() & BIT(WL_WAKE_HOST)) {
 		sdio_cfg.cfg.wl_wake_host_en = 1;
-		WCN_DEBUG("sdio_config wl_wake_host:[en]\n");
+		pr_debug("sdio_config wl_wake_host:[en]\n");
 		sdio_cfg.cfg.wl_wake_host_trigger_type = 3;
 		pr_info("sdio_config wl_wake_host trigger:[high]\n");
 	}
@@ -1969,7 +1969,7 @@ static int marlin_send_sdio_config_to_cp(void)
 
 	sdio_config_off = (unsigned long)(&(marlin_dev->sync_f.sdio_config)) -
 		(unsigned long)(&(marlin_dev->sync_f));
-	WCN_DEBUG("sdio_config_offset:0x%x\n", sdio_config_off);
+	pr_debug("sdio_config_offset:0x%x\n", sdio_config_off);
 
 	marlin_send_sdio_config_to_cp_vendor();
 
@@ -1989,7 +1989,7 @@ static int marlin_write_cali_data(void)
 	//pr_info("tsx_dac_data:%d\n", marlin_dev->tsxcali.tsxdata.dac);
 	cali_data_offset = (unsigned long)(&(marlin_dev->sync_f.tsx_dac_data))-
 		(unsigned long)(&(marlin_dev->sync_f));
-	WCN_DEBUG("cali_data_offset:0x%x\n", cali_data_offset);
+	pr_debug("cali_data_offset:0x%x\n", cali_data_offset);
 
 	do {
 		i++;
@@ -2087,14 +2087,14 @@ static int check_cp_clock_mode(void)
 	int ret = 0;
 	unsigned int temp_val;
 
-	WCN_DEBUG("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	ret = spi_read_rf_reg(AD_DCXO_BONDING_OPT, &temp_val);
 	if (ret < 0) {
 		pr_err("read AD_DCXO_BONDING_OPT error:%d\n", ret);
 		return ret;
 	}
-	WCN_DEBUG("read AD_DCXO_BONDING_OPT val:0x%x\n", temp_val);
+	pr_debug("read AD_DCXO_BONDING_OPT val:0x%x\n", temp_val);
 	if ((temp_val & tsx_mode) == tsx_mode)
 		pr_info("clock mode: TSX\n");
 	else {
@@ -2111,7 +2111,7 @@ static int marlin_start_run(void)
 	int ret = 0;
 	unsigned int ss_val;
 
-	WCN_DEBUG("marlin_start_run\n");
+	pr_debug("marlin_start_run\n");
 
 	marlin_tsx_cali_data_get();
 #ifdef CONFIG_WCN_SLP
@@ -2140,7 +2140,7 @@ static int marlin_start_run(void)
 		pr_err("%s read reset reg error:%d\n", __func__, ret);
 		return ret;
 	}
-	WCN_DEBUG("%s reset reg val:0x%x\n", __func__, ss_val);
+	pr_debug("%s reset reg val:0x%x\n", __func__, ss_val);
 
 	return ret;
 }
@@ -2581,7 +2581,7 @@ static void power_state_notify_or_not(int subsys, int poweron)
 	      test_bit(MARLIN_WIFI, &marlin_dev->power_state) +
 	      test_bit(MARLIN_MDBG, &marlin_dev->power_state)) == 1) {
 #ifdef CONFIG_WCN_LOOPCHECK
-		WCN_DEBUG("only one module open, need to notify loopcheck\n");
+		pr_debug("only one module open, need to notify loopcheck\n");
 		start_loopcheck();
 #endif
 		marlin_dev->loopcheck_status_change = 1;
@@ -2590,7 +2590,7 @@ static void power_state_notify_or_not(int subsys, int poweron)
 
 	if (((marlin_dev->power_state) & MARLIN_MASK) == 0) {
 #ifdef CONFIG_WCN_LOOPCHECK
-		WCN_DEBUG("marlin close, need to notify loopcheck\n");
+		pr_debug("marlin close, need to notify loopcheck\n");
 		stop_loopcheck();
 #endif
 		marlin_dev->loopcheck_status_change = 1;
@@ -2784,7 +2784,7 @@ static void set_wifipa_status(int subsys, int val)
  */
 int chip_power_on(int subsys)
 {
-	WCN_DEBUG("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	/* may be we can call reinit_completion api */
 	init_completion(&marlin_dev->carddetect_done);
@@ -2954,7 +2954,7 @@ static int marlin_set_power(int subsys, int val)
 {
 	unsigned long timeleft;
 
-	WCN_DEBUG("mutex_lock\n");
+	pr_debug("mutex_lock\n");
 	mutex_lock(&marlin_dev->power_lock);
 
 	if (marlin_dev->wait_ge2) {
@@ -3001,7 +3001,7 @@ static int marlin_set_power(int subsys, int val)
 			marlin_dev->download_finish_flag = 1;
 			pr_info("then marlin download finished and run ok\n");
 			marlin_dev->first_power_on_flag = 2;
-			WCN_DEBUG("mutex_unlock\n");
+			pr_debug("mutex_unlock\n");
 			mutex_unlock(&marlin_dev->power_lock);
 			power_state_notify_or_not(subsys, val);
 			if (subsys == MARLIN_GNSS) {
@@ -3123,7 +3123,7 @@ static int marlin_set_power(int subsys, int val)
 						&marlin_dev->power_state);
 				}
 
-				MDBG_LOG("marlin reset flag_reset:%d\n",
+				pr_debug("marlin reset flag_reset:%d\n",
 					flag_reset);
 
 				goto check_power_state_notify;
@@ -3159,7 +3159,7 @@ static int marlin_set_power(int subsys, int val)
 	} /* power off end */
 
 	/* power on off together's Action */
-	WCN_DEBUG("mutex_unlock\n");
+	pr_debug("mutex_unlock\n");
 	mutex_unlock(&marlin_dev->power_lock);
 
 	return 0;
@@ -3175,14 +3175,14 @@ out:
 	marlin_analog_power_enable(false);
 	chip_reset_release(0);
 	marlin_dev->power_state = 0;
-	WCN_DEBUG("mutex_unlock\n");
+	pr_debug("mutex_unlock\n");
 	mutex_unlock(&marlin_dev->power_lock);
 
 	return -1;
 
 check_power_state_notify:
 	power_state_notify_or_not(subsys, val);
-	WCN_DEBUG("mutex_unlock\n");
+	pr_debug("mutex_unlock\n");
 	mutex_unlock(&marlin_dev->power_lock);
 
 	return 0;

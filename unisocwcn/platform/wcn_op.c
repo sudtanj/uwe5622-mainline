@@ -133,7 +133,7 @@ int wcn_op_init(void)
 {
 	int ret;
 
-	WCN_DEBUG("wcn_op_init\n");
+	pr_debug("wcn_op_init\n");
 	ret = misc_register(&wcn_op_device);
 	if (ret)
 		pr_err("wcn operation dev add failed!!!\n");

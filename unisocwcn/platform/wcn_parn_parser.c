@@ -188,7 +188,7 @@ int parse_firmware_path(char *firmware_path)
 	pr_info("%s entry\n", __func__);
 	for (loop = 0; loop < FSTAB_PATH_NUM; loop++) {
 		file1 = NULL;
-		WCN_DEBUG("dir:%s: loop:%d\n", fstab_dir[loop], loop);
+		pr_debug("dir:%s: loop:%d\n", fstab_dir[loop], loop);
 		file1 = wcn_filp_open(fstab_dir[loop], O_DIRECTORY, 0);
 		if (IS_ERR(file1)) {
 			pr_err("%s open error:%d\n",

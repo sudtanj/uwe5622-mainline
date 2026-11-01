@@ -30,7 +30,7 @@ static int at_cmd_send(char *buf, unsigned int len)
 	struct mbuf_t *head, *tail;
 	int num = 1;
 
-	WCN_DEBUG("%s len=%d\n", __func__, len);
+	pr_debug("%s len=%d\n", __func__, len);
 	if (unlikely(marlin_get_module_status() != true)) {
 		pr_err("WCN module have not open\n");
 		return -EIO;
@@ -109,7 +109,7 @@ int get_board_ant_num(void)
 	unsigned char *at_cmd_buf;
 	unsigned char ret;
 
-	WCN_DEBUG("%s entry!\n", __func__);
+	pr_debug("%s entry!\n", __func__);
 
 	/* 1. uwe5621 module on RK board(rk3368):
 	 * Antenna num is fixed to one.
@@ -208,7 +208,7 @@ void complete_kernel_atcmd(void)
 int loopcheck_init(void)
 {
 #ifdef CONFIG_WCN_LOOPCHECK
-	WCN_DEBUG("loopcheck_init\n");
+	pr_debug("loopcheck_init\n");
 	loopcheck.status = 0;
 	init_completion(&loopcheck.completion);
 	loopcheck.workqueue =

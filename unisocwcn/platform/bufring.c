@@ -65,22 +65,22 @@ struct mdbg_ring_t *mdbg_ring_alloc(long int size)
 
 	do {
 		if (size < MDBG_RING_MIN_SIZE) {
-			MDBG_ERR("size error:%ld", size);
+			pr_err("size error:%ld\n", size);
 			break;
 		}
 		ring = kmalloc(sizeof(struct mdbg_ring_t), GFP_KERNEL);
 		if (ring == NULL) {
-			MDBG_ERR("Ring malloc Failed.");
+			pr_err("Ring malloc Failed.\n");
 			break;
 		}
 		ring->pbuff = kmalloc(size, GFP_KERNEL);
 		if (ring->pbuff == NULL) {
-			MDBG_ERR("Ring buff malloc Failed.");
+			pr_err("Ring buff malloc Failed.\n");
 			break;
 		}
 		ring->plock = kmalloc(MDBG_RING_LOCK_SIZE, GFP_KERNEL);
 		if (ring->plock == NULL) {
-			MDBG_ERR("Ring lock malloc Failed.");
+			pr_err("Ring lock malloc Failed.\n");
 			break;
 		}
 		MDBG_RING_LOCK_INIT(ring);
@@ -103,21 +103,21 @@ void mdbg_ring_destroy(struct mdbg_ring_t *ring)
 	if (unlikely(ZERO_OR_NULL_PTR(ring)))
 		return;
 
-	MDBG_LOG("ring = %p", ring);
-	MDBG_LOG("ring->pbuff = %p", ring->pbuff);
+	pr_debug("ring = %p\n", ring);
+	pr_debug("ring->pbuff = %p\n", ring->pbuff);
 	if (ring != NULL) {
 		if (ring->pbuff != NULL) {
-			MDBG_LOG("to free ring->pbuff.");
+			pr_debug("to free ring->pbuff.\n");
 			kfree(ring->pbuff);
 			ring->pbuff = NULL;
 		}
 		if (ring->plock != NULL) {
-			MDBG_LOG("to free ring->plock.");
+			pr_debug("to free ring->plock.\n");
 			MDBG_RING_LOCK_UNINIT(ring);
 			kfree(ring->plock);
 			ring->plock = NULL;
 		}
-		MDBG_LOG("to free ring.");
+		pr_debug("to free ring.\n");
 		kfree(ring);
 		ring = NULL;
 	}
@@ -133,8 +133,8 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 	static unsigned int total_len;
 
 	if ((buf == NULL) || (ring == NULL) || (len == 0)) {
-		MDBG_ERR("Ring Read Failed,Param Error!,buf=%p,ring=%p,len=%d",
-			buf, ring, len);
+		pr_err("Ring Read Failed,Param Error!,buf=%p,ring=%p,len=%d\n",
+		       buf, ring, len);
 		return -MDBG_ERR_BAD_PARAM;
 	}
 	MDBG_RING_LOCK(ring);
@@ -142,21 +142,21 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 	read_len = cont_len >= len ? len : cont_len;
 	pstart = mdbg_ring_start(ring);
 	pend = mdbg_ring_end(ring);
-	MDBG_LOG("read_len=%d", read_len);
-	MDBG_LOG("buf=%p", buf);
-	MDBG_LOG("pstart=%p", pstart);
-	MDBG_LOG("pend=%p", pend);
-	MDBG_LOG("ring->wp = %p", ring->wp);
-	MDBG_LOG("ring->rp=%p\n", ring->rp);
+	pr_debug("read_len=%d\n", read_len);
+	pr_debug("buf=%p\n", buf);
+	pr_debug("pstart=%p\n", pstart);
+	pr_debug("pend=%p\n", pend);
+	pr_debug("ring->wp = %p\n", ring->wp);
+	pr_debug("ring->rp=%p\n", ring->rp);
 
 	if ((read_len == 0) || (cont_len == 0)) {
-		MDBG_LOG("read_len = 0 OR Ring Empty.");
+		pr_debug("read_len = 0 OR Ring Empty.\n");
 		MDBG_RING_UNLOCK(ring);
 		return 0;	/*ring empty*/
 	}
 
 	if (mdbg_ring_over_loop(ring, read_len, MDBG_RING_R)) {
-		MDBG_LOG("Ring loopover.");
+		pr_debug("Ring loopover.\n");
 		len1 = pend - ring->rp + 1;
 		len2 = read_len - len1;
 		if ((uintptr_t)buf > TASK_SIZE) {
@@ -167,7 +167,7 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 				(void *)ring->rp, len1) |
 				copy_to_user((void __user *)(buf + len1),
 				(void *)pstart, len2)) {
-				MDBG_ERR("copy to user error!\n");
+				pr_err("copy to user error!\n");
 				MDBG_RING_UNLOCK(ring);
 				return -EFAULT;
 			}
@@ -186,7 +186,7 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 		else
 			if (copy_to_user((void __user *)buf,
 						(void *)ring->rp, read_len)) {
-				MDBG_ERR("copy to user error!\n");
+				pr_err("copy to user error!\n");
 				MDBG_RING_UNLOCK(ring);
 
 				return -EFAULT;
@@ -198,7 +198,7 @@ int mdbg_ring_read(struct mdbg_ring_t *ring, void *buf, int len)
 			"%s totallen:%u curread:%d wp:%p rp:%p",
 			__func__, total_len, read_len,
 			ring->wp, ring->rp);
-	MDBG_LOG("<-----[read end] read len =%d.\n", read_len);
+	pr_debug("<-----[read end] read len =%d.\n", read_len);
 	MDBG_RING_UNLOCK(ring);
 
 	return read_len;
@@ -215,22 +215,21 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 	char *pend = NULL;
 	static unsigned int total_len;
 
-	MDBG_LOG("-->Ring Write len = %d\n", len);
+	pr_debug("-->Ring Write len = %d\n", len);
 	if ((ring == NULL) || (buf == NULL) || (len == 0)) {
-		MDBG_ERR(
-			"Ring Write Failed,Param Error!,buf=%p,ring=%p,len=%d",
-			buf, ring, len);
+		pr_err("Ring Write Failed,Param Error!,buf=%p,ring=%p,len=%d\n",
+		       buf, ring, len);
 
 		return -MDBG_ERR_BAD_PARAM;
 	}
 	pstart = mdbg_ring_start(ring);
 	pend = mdbg_ring_end(ring);
-	MDBG_LOG("pstart = %p", pstart);
-	MDBG_LOG("pend = %p", pend);
-	MDBG_LOG("buf = %p", buf);
-	MDBG_LOG("len = %d", len);
-	MDBG_LOG("ring->wp = %p", ring->wp);
-	MDBG_LOG("ring->rp=%p", ring->rp);
+	pr_debug("pstart = %p\n", pstart);
+	pr_debug("pend = %p\n", pend);
+	pr_debug("buf = %p\n", buf);
+	pr_debug("len = %d\n", len);
+	pr_debug("ring->wp = %p\n", ring->wp);
+	pr_debug("ring->rp=%p\n", ring->rp);
 
 	/*
 	 * ring buf valid space < len,need to write (buf_space-1)
@@ -245,7 +244,7 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 
 	/* ring buf valid space > len, you can write freely */
 	if (mdbg_ring_over_loop(ring, len, MDBG_RING_W)) {
-		MDBG_LOG("Ring overloop.");
+		pr_debug("Ring overloop.\n");
 		len1 = pend - ring->wp + 1;
 		len2 = (len - len1) % ring->size;
 		if ((uintptr_t)buf > TASK_SIZE) {
@@ -256,7 +255,7 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 				(void __user *)buf, len1) |
 				copy_from_user((void *)pstart,
 					(void __user *)(buf + len1), len2)) {
-				MDBG_ERR("%s copy from user error!\n",
+				pr_err("%s copy from user error!\n",
 						__func__);
 				return -EFAULT;
 			}
@@ -270,7 +269,7 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 		else
 			if (copy_from_user((void *)ring->wp,
 						(void __user *)buf, len)) {
-				MDBG_ERR("%s copy from user error!\n",
+				pr_err("%s copy from user error!\n",
 						__func__);
 				return -EFAULT;
 			}
@@ -280,7 +279,7 @@ int mdbg_ring_write(struct mdbg_ring_t *ring, void *buf, unsigned int len)
 	wcn_pr_daterate(4, 1, total_len,
 			"%s totallen:%u cur_read:%u wp:%p rp:%p",
 			__func__, total_len, len, ring->wp, ring->rp);
-	MDBG_LOG("<------end len = %d\n", len);
+	pr_debug("<------end len = %d\n", len);
 
 	return len;
 }
@@ -294,8 +293,8 @@ int mdbg_ring_write_timeout(struct mdbg_ring_t *ring, void *buf,
 	while (cnt > 0 && (mdbg_ring_free_space(ring) - 1) < len) {
 		msleep(20);
 		if (--cnt == 0)
-			MDBG_ERR("ringbuf is full, tiemout:%u\n",
-				 timeout);
+			pr_err("ringbuf is full, tiemout:%u\n",
+			       timeout);
 	}
 
 	return mdbg_ring_write(ring, buf, len);
@@ -305,25 +304,24 @@ char *mdbg_ring_write_ext(struct mdbg_ring_t *ring, long int len)
 {
 	char *wp = NULL;
 
-	MDBG_LOG("ring=%p,ring->wp=%p,len=%ld.", ring, ring->wp, len);
+	pr_debug("ring=%p,ring->wp=%p,len=%ld.\n", ring, ring->wp, len);
 
 	if ((ring == NULL) || (len == 0)) {
-		MDBG_ERR("Ring Write Ext Failed,Param Error!");
+		pr_err("Ring Write Ext Failed,Param Error!\n");
 		return NULL;
 	}
 
 	if (mdbg_ring_over_loop(ring, len, MDBG_RING_R)
 			|| mdbg_ring_will_full(ring, len)) {
-		MDBG_LOG(
-		"Ring Write Ext Failed,Ring State Error!,overloop=%d,full=%d.",
-		mdbg_ring_over_loop(ring, len, MDBG_RING_R),
-		mdbg_ring_will_full(ring, len));
+		pr_debug("Ring Write Ext Failed,Ring State Error!,overloop=%d,full=%d.\n",
+			 mdbg_ring_over_loop(ring, len, MDBG_RING_R),
+			 mdbg_ring_will_full(ring, len));
 		return NULL;
 	}
 	MDBG_RING_LOCK(ring);
 	wp = ring->wp;
 	ring->wp += len;
-	MDBG_LOG("return wp=%p,ring->wp=%p.", wp, ring->wp);
+	pr_debug("return wp=%p,ring->wp=%p.\n", wp, ring->wp);
 	MDBG_RING_UNLOCK(ring);
 
 	return wp;
@@ -353,6 +351,6 @@ void mdbg_ring_reset(struct mdbg_ring_t *ring)
 
 void mdbg_ring_print(struct mdbg_ring_t *ring)
 {
-	WCN_DEBUG("ring buf status:ring->rp=%p,ring->wp=%p.\n",
+	pr_debug("ring buf status:ring->rp=%p,ring->wp=%p.\n",
 				ring->rp, ring->wp);
 }

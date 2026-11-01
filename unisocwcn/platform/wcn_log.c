@@ -66,11 +66,11 @@ static int wcnlog_open(struct inode *inode, struct file *filp)
 	dev = container_of(inode->i_cdev, struct wcnlog_dev, cdev);
 	filp->private_data = dev;
 
-	WCN_DEBUG("wcnlog_open z=%d,major=%d,minor = %d\n",
+	pr_debug("wcnlog_open z=%d,major=%d,minor = %d\n",
 		dev->cdev.dev, MAJOR(dev->cdev.dev), MINOR(dev->cdev.dev));
 
 	if (mdbg_dev->open_count != 0)
-		MDBG_ERR("open count %d\n", mdbg_dev->open_count);
+		pr_err("open count %d\n", mdbg_dev->open_count);
 
 	mdbg_dev->open_count++;
 
@@ -105,13 +105,13 @@ static ssize_t wcnlog_read(struct file *filp,
 	if (filp->f_flags & O_NONBLOCK)
 		timeout = 0;
 
-	WCN_DEBUG("wcnlog_read timeout=%d,major=%d, minor=%d\n",
+	pr_debug("wcnlog_read timeout=%d,major=%d, minor=%d\n",
 		timeout, dev->major, dev->minor);
 
-	WCN_DEBUG("wcnlog_read z=%d,major=%d,minor = %d\n", dev->cdev.dev,
+	pr_debug("wcnlog_read z=%d,major=%d,minor = %d\n", dev->cdev.dev,
 		MAJOR(dev->cdev.dev), MINOR(dev->cdev.dev));
 	/* count :100K-log, 32K-mem ;cat :4096 */
-	WCN_DEBUG("wcnlog_read len = %ld\n", (long int)count);
+	pr_debug("wcnlog_read len = %ld\n", (long int)count);
 	if ((functionmask[7] & CP2_FLAG_YLOG) == 1)
 		return -EIO;
 
@@ -143,13 +143,13 @@ static ssize_t wcnlog_read(struct file *filp,
 	}
 	/* read_size = log1040 or mem32K, 1024 */
 	if (read_size > 0) {
-		WCN_DEBUG("Show %ld bytes data.", read_size);
+		pr_debug("Show %ld bytes data.\n", read_size);
 		rval = read_size;
 	} else if (read_size == 0)
 		rval = -EAGAIN;
 	else {
 		rval = read_size;
-		WCN_DEBUG("log read error %d\n", rval);
+		pr_debug("log read error %d\n", rval);
 	}
 	mutex_unlock(&mdbg_dev->mdbg_lock);
 
@@ -185,7 +185,7 @@ static ssize_t wcnlog_write(struct file *filp,
 	mutex_unlock(&mdbg_dev->mdbg_lock);
 	kfree(p_data);
 
-	WCN_DEBUG("sent_size = %ld", sent_size);
+	pr_debug("sent_size = %ld\n", sent_size);
 
 	return sent_size;
 }
@@ -194,7 +194,7 @@ static __poll_t wcnlog_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask = 0;
 
-	MDBG_LOG("wcnlog_poll\n");
+	pr_debug("wcnlog_poll\n");
 	if ((!mdbg_dev) || (mdbg_dev->exit_flag)) {
 		pr_info("wcnlog_poll exit!\n");
 		mask |= EPOLLIN | EPOLLERR;
@@ -244,7 +244,7 @@ static int wcnlog_register_device(struct wcnlog_dev *dev, int index)
 	}
 	dev->major = MAJOR(devno);
 	dev->minor = MINOR(devno);
-	WCN_DEBUG("log dev major=%d,minor=%d\n", dev->major, dev->minor);
+	pr_debug("log dev major=%d,minor=%d\n", dev->major, dev->minor);
 	device_create(wcnlog_class, NULL,
 			MKDEV(MAJOR(devno), MINOR(devno)),
 			NULL, "%s%d", "slog_wcn", index);
@@ -261,7 +261,7 @@ int log_cdev_init(void)
 
 	struct wcnlog_dev *dev[WCN_LOG_MAX_MINOR] = {NULL};
 
-	WCN_DEBUG("log_cdev_init\n");
+	pr_debug("log_cdev_init\n");
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
 	wcnlog_class = class_create("slog_wcn");
 #else
@@ -338,7 +338,7 @@ int log_dev_init(void)
 {
 	int err;
 
-	MDBG_FUNC_ENTERY;
+	pr_debug("ENTER.\n");
 	mdbg_dev = kzalloc(sizeof(struct mdbg_device_t), GFP_KERNEL);
 	if (!mdbg_dev)
 		return -ENOMEM;

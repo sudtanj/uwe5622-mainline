@@ -60,7 +60,7 @@ enum atcmd_owner mdbg_atcmd_owner_peek(void)
 	s_atcmd_owner.head++;
 	mutex_unlock(&s_atcmd_owner.lock);
 
-	WCN_DEBUG("owner=%d, head=%d\n", owner, s_atcmd_owner.head-1);
+	pr_debug("owner=%d, head=%d\n", owner, s_atcmd_owner.head-1);
 	return owner;
 }
 
@@ -96,7 +96,7 @@ long int mdbg_send_atcmd(char *buf, long int len, enum atcmd_owner owner)
 	sent_size = mdbg_send(buf, len, MDBG_SUBTYPE_AT);
 	mutex_unlock(&s_atcmd_owner.lock);
 
-	WCN_DEBUG("%s, owner=%d\n", buf, owner);
+	pr_debug("%s, owner=%d\n", buf, owner);
 
 	return sent_size;
 }

@@ -90,7 +90,7 @@ static int wcn_mkdir(char *path)
 		pr_info("open %s error!\n", path);
 		return -1;
 	}
-	WCN_DEBUG("open %s success.\n", path);
+	pr_debug("open %s success.\n", path);
 	filp_close(fp, NULL);
 	return 0;
 }
@@ -185,7 +185,7 @@ int log_rx_callback(void *addr, unsigned int len)
 	struct file *filp;
 	static int retry;
 
-	WCN_DEBUG("log_rx_callback\n");
+	pr_debug("log_rx_callback\n");
 	if ((debug_inited == 0) && (debug_user_inited == 0))
 		return 0;
 
@@ -203,8 +203,8 @@ retry:
 		/*in case the path no longer exist, creat path or change path.*/
 		if ((PTR_ERR(filp) == -ENOENT) && (retry == 0)) {
 			retry = 1;
-			WCN_DEBUG("%s: %s is no longer exist!\n",
-				  __func__, wcn_cp2_log_path);
+			pr_debug("%s: %s is no longer exist!\n",
+				 __func__, wcn_cp2_log_path);
 			if (wcn_mkdir(wcn_unisoc_dbg_path_tmp) == 0) {
 				wcn_set_log_file_path(
 					wcn_unisoc_dbg_path_tmp,
@@ -308,8 +308,8 @@ retry:
 		/*in case the path no longer exist, creat path or change path.*/
 		if ((PTR_ERR(filp) == -ENOENT) && (retry == 0)) {
 			retry = 1;
-			WCN_DEBUG("%s: %s is no longer exist!\n",
-				  __func__, wcn_cp2_mem_path);
+			pr_debug("%s: %s is no longer exist!\n",
+				 __func__, wcn_cp2_mem_path);
 			if (wcn_mkdir(wcn_unisoc_dbg_path_tmp) == 0) {
 				wcn_set_log_file_path(
 					wcn_unisoc_dbg_path_tmp,
@@ -587,7 +587,7 @@ int wcn_debug_init(void)
 	int ret = 0;
 	unsigned char i;
 
-	WCN_DEBUG("%s entry\n", __func__);
+	pr_debug("%s entry\n", __func__);
 
 	/* config cp2 log if there is a config file.*/
 	if (config_inited == 0) {
@@ -604,8 +604,8 @@ int wcn_debug_init(void)
 	}
 
 	if (debug_inited || debug_user_inited) {
-		WCN_DEBUG("%s log path %s already initialized\n",
-			  __func__, wcn_cp2_log_path);
+		pr_debug("%s log path %s already initialized\n",
+			 __func__, wcn_cp2_log_path);
 		return 0;
 	}
 

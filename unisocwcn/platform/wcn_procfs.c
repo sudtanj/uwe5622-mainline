@@ -40,8 +40,6 @@
 
 #define CONFIG_CP2_ASSERT       (0)
 
-u32 wcn_print_level = WCN_DEBUG_OFF;
-
 static u32 g_dumpmem_switch =  1;
 static u32 g_loopcheck_switch;
 
@@ -193,8 +191,8 @@ int mdbg_loopcheck_read(int channel, struct mbuf_t *head,
 	memcpy(mdbg_proc->loopcheck.buf, head->buf + PUB_HEAD_RSV, data_length);
 	mdbg_proc->loopcheck.rcv_len = data_length;
 
-	WCN_DEBUG("mdbg_loopcheck_read:%s\n",
-		  (char *)(mdbg_proc->loopcheck.buf));
+	pr_debug("mdbg_loopcheck_read:%s\n",
+		 (char *)(mdbg_proc->loopcheck.buf));
 	mdbg_proc->fail_count = 0;
 	complete(&mdbg_proc->loopcheck.completed);
 #ifdef CONFIG_WCN_LOOPCHECK
@@ -840,7 +838,7 @@ static __poll_t mdbg_proc_poll(struct file *filp, poll_table *wait)
 
 	if (strcmp(type, "loopcheck") == 0) {
 		poll_wait(filp, &mdbg_proc->loopcheck.rxwait, wait);
-		MDBG_LOG("loopcheck:power_state_changed:%d\n",
+		pr_debug("loopcheck:power_state_changed:%d\n",
 					wcn_get_module_status_changed());
 		if (wcn_get_module_status_changed()) {
 			wcn_set_module_status_changed(false);

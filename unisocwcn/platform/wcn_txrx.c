@@ -192,7 +192,7 @@ long int mdbg_send(char *buf, long int len, unsigned int subtype)
 {
 	long int sent_size = 0;
 
-	WCN_DEBUG("BYTE MODE");
+	pr_debug("BYTE MODE\n");
 	__pm_stay_awake(ring_dev->rw_ws);
 	sent_size = mdbg_comm_write(buf, len, subtype);
 	__pm_relax(ring_dev->rw_ws);
@@ -226,12 +226,12 @@ int mdbg_tx_cb(int channel, struct mbuf_t *head,
 int mdbg_tx_power_notify(int chn, int flag)
 {
 	if (flag) {
-		WCN_DEBUG("%s resume\n", __func__);
+		pr_debug("%s resume\n", __func__);
 #ifdef CONFIG_WCN_LOOPCHECK
 		start_loopcheck();
 #endif
 	} else {
-		WCN_DEBUG("%s suspend\n", __func__);
+		pr_debug("%s suspend\n", __func__);
 #ifdef CONFIG_WCN_LOOPCHECK
 		stop_loopcheck();
 #endif
@@ -274,7 +274,7 @@ int mdbg_ring_init(void)
 	INIT_WORK(&ring_dev->rx_task, mdbg_ring_rx_task);
 	ring_dev->flag_smp = 0;
 	mdbg_pt_ring_reg();
-	WCN_DEBUG("mdbg_ring_init success!");
+	pr_debug("mdbg_ring_init success!\n");
 
 	mdbg_dev->ring_dev = ring_dev;
 
@@ -285,7 +285,7 @@ void mdbg_ring_remove(void)
 {
 	struct ring_rx_data *pos, *next;
 
-	MDBG_FUNC_ENTERY;
+	pr_debug("ENTER.\n");
 	mdbg_pt_ring_unreg();
 	cancel_work_sync(&ring_dev->rx_task);
 	list_for_each_entry_safe(pos, next, &ring_dev->rx_head, entry) {
