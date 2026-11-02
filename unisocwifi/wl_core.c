@@ -522,10 +522,6 @@ static struct sprdwl_if_ops sprdwl_core_ops = {
 };
 
 #ifdef CP2_RESET_SUPPORT
-extern struct sprdwl_priv *g_sprdwl_priv;
-extern void sprdwl_cancel_scan(struct sprdwl_vif *vif);
-extern void sprdwl_cancel_sched_scan(struct sprdwl_vif *vif);
-extern void sprdwl_net_flowcontrl(struct sprdwl_priv *priv, enum sprdwl_mode mode, bool state);
 
 static void sprdwl_wifi_reset(void)
 {

@@ -3203,8 +3203,6 @@ static void sprdwl_event_thermal_warn(struct sprdwl_vif *vif, u8 *data, u16 len)
 }
 
 #define WIFI_EVENT_WFD_RATE 0x30
-extern int wfd_notifier_call_chain(unsigned long val, void *v);
-
 static void sprdwl_wfd_mib_cnt(struct sprdwl_vif *vif, u8 *data, u16 len)
 {
 	struct event_wfd_mib_cnt *wfd =

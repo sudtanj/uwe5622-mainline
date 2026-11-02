@@ -11,7 +11,6 @@
 #include "intf_ops.h"
 #include "tcp_ack.h"
 
-extern struct sprdwl_priv *g_sprdwl_priv;
 
 static void sprdwl_tcp_ack_set_enable(struct sprdwl_tcp_ack_manage *ack_m,
 				      bool enable);

@@ -582,31 +582,18 @@ static struct notifier_block sprdwl_inet6addr_cb = {
 	.notifier_call = sprdwl_inetaddr6_event
 };
 
-#if IS_ENABLED(CONFIG_SUNXI_ADDR_MGT)
-extern int get_custom_mac_address(int fmt, char *name, char *addr);
-#endif
 static void sprdwl_set_mac_addr(struct sprdwl_vif *vif, u8 *pending_addr,
 				u8 *addr)
 {
 	int default_mac_valid = 0;
 	enum nl80211_iftype type = vif->wdev.iftype;
 	struct sprdwl_priv *priv = vif->priv;
-	u8 addr_str[20];
-	u8 custom_mac[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-	int ret;
-	(void)addr_str;
-	(void)ret;
 
 	if (!addr) {
 		return;
 	}
-#if IS_ENABLED(CONFIG_SUNXI_ADDR_MGT)
-	get_custom_mac_address(1, "wifi", custom_mac);
-#endif
 
-	if (is_valid_ether_addr(custom_mac)) {
-		ether_addr_copy(addr, custom_mac);
-	} else if (priv && is_valid_ether_addr(priv->mac_addr)) {
+	if (priv && is_valid_ether_addr(priv->mac_addr)) {
 		ether_addr_copy(addr, priv->mac_addr);
 	} else if (pending_addr && is_valid_ether_addr(pending_addr)) {
 		ether_addr_copy(addr, pending_addr);
