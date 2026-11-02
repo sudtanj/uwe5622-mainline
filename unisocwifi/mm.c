@@ -24,6 +24,7 @@
 #include "tx_msg.h"
 #include "cmdevt.h"
 #include "work.h"
+#include "parse.h"
 
 #define GET_NEXT_ADDR_TRANS_VALUE(value, offset) \
 	(struct sprdwl_addr_trans_value *)((unsigned char *)value + offset)
@@ -399,31 +400,37 @@ mm_compound_data_process(struct sprdwl_mm *mm_entry, void *compound_data,
 			 int total_len, int buffer_type)
 {
 #define ALIGN_8BYTE(a) (((a) + 7) & ~7)
-	void *pos_data = NULL;
-	int num = 0, msdu_len = 0, len = 0;
+	void *base = NULL;
+	struct rx_msdu_desc *desc;
+	int num = 0, msdu_len = 0;
+	size_t off = 0;
 	struct sk_buff *skb = NULL;
 	struct sprdwl_rx_if *rx_if =
 			container_of(mm_entry, struct sprdwl_rx_if, mm_entry);
 
+	base = compound_data + mm_entry->hif_offset;
+	total_len -= mm_entry->hif_offset;
+	num = ((struct rx_msdu_desc *)base)->short_pkt_num;
 	wl_debug("%s: num: %d, total_len: %d\n", __func__, num, total_len);
 
-	pos_data = compound_data + mm_entry->hif_offset;
-	total_len -= mm_entry->hif_offset;
-	num = ((struct rx_msdu_desc *)pos_data)->short_pkt_num;
-
+	/*
+	 * Each MSDU (descriptor + frame) is followed by a struct rx_mh_desc
+	 * and padded to 8 bytes; descriptor and frame must lie inside the
+	 * received buffer.
+	 */
 	while (num--) {
-		msdu_len = msdu_total_len((struct rx_msdu_desc *)pos_data);
-		len += ALIGN_8BYTE(msdu_len);
-		if (unlikely(len > total_len)) {
-			wl_err("%s: total_len:%d < len:%d, leave %d pkts\n",
-			       __func__, total_len, len, (num + 1));
-			break;
-		}
+		if (total_len < 0 ||
+		    !sprdwl_len_ok(total_len, off, sizeof(*desc)))
+			goto short_buf;
+		desc = base + off;
+		msdu_len = msdu_total_len(desc);
+		if (!sprdwl_len_ok(total_len, off, msdu_len))
+			goto short_buf;
 
-		wl_debug("%s: msdu_len: %d, len: %d\n",
-			 __func__, msdu_len, len);
+		wl_debug("%s: msdu_len: %d, off: %zu\n",
+			 __func__, msdu_len, off);
 
-		skb = mm_data2skb_process(mm_entry, pos_data, msdu_len);
+		skb = mm_data2skb_process(mm_entry, desc, msdu_len);
 		if (unlikely(!skb)) {
 			wl_err("%s: alloc skb fail, leave %d pkts\n",
 			       __func__, (num + 1));
@@ -432,11 +439,15 @@ mm_compound_data_process(struct sprdwl_mm *mm_entry, void *compound_data,
 
 		sprdwl_rx_process(rx_if, skb);
 
-		pos_data = (unsigned char *)pos_data +
-			ALIGN_8BYTE(msdu_len + sizeof(struct rx_mh_desc));
+		off += ALIGN_8BYTE(msdu_len + sizeof(struct rx_mh_desc));
 		skb = NULL;
 	}
+	goto out;
 
+short_buf:
+	wl_err("%s: total_len:%d too short at %zu, leave %d pkts\n",
+	       __func__, total_len, off, num + 1);
+out:
 	sprdwl_free_data(compound_data, buffer_type);
 }
 
