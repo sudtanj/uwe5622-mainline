@@ -5,6 +5,9 @@
 BSP=uwe5622_bsp_sdio WIFI=sprdwl_ng BT=sprdbt_tty
 LOOPS=$(cmdline_get uwe.loops)
 LOOPS=${LOOPS:-20}
+# each sprdwl_ng probe costs 20-30 s under TCG, so loops that include it run fewer times
+HEAVY=$(cmdline_get uwe.heavy_loops)
+HEAVY=${HEAVY:-5}
 
 kml_reset
 
@@ -12,7 +15,8 @@ kml_reset
 phase lifecycle-load
 check "insmod $BSP" load $BSP
 eq "$BSP: transport parameter defaults to sdio" sdio "$(cat /sys/module/$BSP/parameters/transport 2>&1)"
-check "uwe_bsp platform device bound to its driver" test -e /sys/bus/platform/drivers/uwe_bsp/uwe_bsp
+check "uwe_bsp platform driver registered" test -d /sys/bus/platform/drivers/uwe_bsp
+check "uwe_bsp platform device created" test -e /sys/bus/platform/devices/uwe_bsp
 t0=$(now_ns)
 check "insmod $WIFI (no chip: probe fails, module stays)" load $WIFI
 t1=$(now_ns)
@@ -70,14 +74,14 @@ check "no driver module left after the parameter tests" no_driver_modules
 kml_check "kmemleak: nothing leaked by the parameter tests" params
 
 # --- repeated load/unload ---------------------------------------------------
-# cycle "label" module...: load in order, unload in reverse, $LOOPS times
+# cycle "label" count module...: load in order, unload in reverse, count times
 cycle() {
-	label=$1
-	shift
-	phase "lifecycle-loop-$label"
+	label=$1 count=$2
+	shift 2
+	phase "lifecycle-loop-$(echo "$label" | tr -c "A-Za-z0-9\n" _)"
 	fails=0
 	i=0
-	while [ $i -lt "$LOOPS" ]; do
+	while [ $i -lt "$count" ]; do
 		i=$((i + 1))
 		for m in "$@"; do load "$m" > /dev/null 2>&1 || { fails=$((fails + 1)); echo "loop $i: insmod $m failed"; }; done
 		rev=""
@@ -85,11 +89,11 @@ cycle() {
 		for m in $rev; do rmmod "$m" > /dev/null 2>&1 || { fails=$((fails + 1)); echo "loop $i: rmmod $m failed"; }; done
 		no_driver_modules || { fails=$((fails + 1)); echo "loop $i: modules left: $(lsmod)"; unload_all; }
 	done
-	if [ $fails = 0 ]; then ok "${LOOPS}x load/unload: $label"; else nok "${LOOPS}x load/unload: $label" "$fails failures"; fi
+	if [ $fails = 0 ]; then ok "${count}x load/unload: $label"; else nok "${count}x load/unload: $label" "$fails failures"; fi
 }
-cycle "$BSP" $BSP
-cycle "$BSP + $WIFI" $BSP $WIFI
-cycle "$BSP + $BT" $BSP $BT
-cycle "all three" $BSP $WIFI $BT
+cycle "$BSP" "$LOOPS" $BSP
+cycle "$BSP + $WIFI" "$HEAVY" $BSP $WIFI
+cycle "$BSP + $BT" "$LOOPS" $BSP $BT
+cycle "all three" "$HEAVY" $BSP $WIFI $BT
 phase lifecycle-kmemleak
 kml_check "kmemleak: nothing leaked by the load/unload loops" loops

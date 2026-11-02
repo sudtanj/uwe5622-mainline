@@ -48,6 +48,9 @@ static void regdom_rules_well_formed(struct kunit *test)
 
 			KUNIT_EXPECT_LT_MSG(test, f->start_freq_khz, f->end_freq_khz,
 					    "%s rule %d", cc[i], r);
+			/* AUTO_BW rules may list more than the band; the core trims them */
+			if (rd->reg_rules[r].flags & NL80211_RRF_AUTO_BW)
+				continue;
 			KUNIT_EXPECT_LE_MSG(test, f->max_bandwidth_khz,
 					    f->end_freq_khz - f->start_freq_khz,
 					    "%s rule %d", cc[i], r);
