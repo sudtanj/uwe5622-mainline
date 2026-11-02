@@ -324,7 +324,7 @@ static void sim_process_one(int chn, struct mbuf_t *m)
 		return;
 	switch (chn) {
 	case CHN_AT_TX:
-		if (strnstr(payload, "loopcheck", len))
+		if (strnstr((const char *)payload, "loopcheck", len))
 			sim_at_reply(CHN_LOOPCHECK_RX, "\r\nOK\r\n");
 		else
 			sim_at_reply(CHN_AT_RX, "\r\nOK\r\n");
