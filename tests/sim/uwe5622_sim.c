@@ -30,6 +30,8 @@
 #include <linux/unaligned.h>
 #include <wcn_bus.h>
 
+#include <net/cfg80211.h>
+#include "cfg80211.h"
 #include "msg.h"
 #include "cmdevt.h"
 
