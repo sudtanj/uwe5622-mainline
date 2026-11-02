@@ -1025,7 +1025,7 @@ static int enable_cp_pll(void)
 		pr_err("%s write CLK_CTRL0 reg error:%d\n", __func__, ret);
 		return ret;
 	}
-	udelay(200);
+	usleep_range(200, 400);
 	temp = temp | APLL_PDN | BPLL_PDN;
 	pr_info("%s enable CLK_CTRL0 val:0x%x\n", __func__, temp);
 	ret = sprdwcn_bus_reg_write(CLK_CTRL0, &temp, 4);
@@ -1033,7 +1033,7 @@ static int enable_cp_pll(void)
 		pr_err("%s write CLK_CTRL0 reg err:%d\n", __func__, ret);
 		return ret;
 	}
-	udelay(200);
+	usleep_range(200, 400);
 
 	return ret;
 }
@@ -1065,7 +1065,7 @@ static int check_wifi_power_domain_ison(void)
 			ret = sprdwcn_bus_reg_read(PD_WIFI_AON_CFG4, &temp, 4);
 			temp = temp & (~WIFI_WRAP_PWR_DOWN);
 			ret = sprdwcn_bus_reg_write(PD_WIFI_AON_CFG4, &temp, 4);
-			udelay(200);
+			usleep_range(200, 400);
 			/* MAC power on */
 			pr_info("WIFI MAC start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_MAC_AON_CFG4,
@@ -1073,7 +1073,7 @@ static int check_wifi_power_domain_ison(void)
 			temp = temp & (~WIFI_MAC_PWR_DOWN);
 			ret = sprdwcn_bus_reg_write(PD_WIFI_MAC_AON_CFG4,
 						    &temp, 4);
-			udelay(200);
+			usleep_range(200, 400);
 			/* PHY power on */
 			pr_info("WIFI PHY start power on\n");
 			ret = sprdwcn_bus_reg_read(PD_WIFI_PHY_AON_CFG4,
@@ -1096,7 +1096,7 @@ static int check_wifi_power_domain_ison(void)
 			temp = temp & (~(1 << 1));
 			ret = sprdwcn_bus_reg_write(DUMP_WIFI_AON_MAC_ADDR,
 						    &temp, 4);
-			udelay(300);
+			usleep_range(300, 600);
 			/* WIFI_MAC_RTN_SLEEPPS_CTL [bit0] =0 */
 			ret = sprdwcn_bus_reg_read(WIFI_MAC_RTN_SLEEPPS_CTL,
 						   &temp, 4);

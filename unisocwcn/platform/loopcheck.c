@@ -7,7 +7,8 @@
 #include "wcn_glb.h"
 #include "wcn_procfs.h"
 
-#define LOOPCHECK_TIMER_INTERVAL      5
+/* seconds between firmware liveness checks; a dead firmware also asserts */
+#define LOOPCHECK_TIMER_INTERVAL      15
 #define WCN_LOOPCHECK_INIT	1
 #define WCN_LOOPCHECK_OPEN	2
 
@@ -41,13 +42,21 @@ static int at_cmd_send(char *buf, unsigned int len)
 		return -ENOMEM;
 	memcpy(send_buf + PUB_HEAD_RSV, buf, len);
 
-	if (!sprdwcn_bus_list_alloc(mdbg_proc_ops[MDBG_AT_TX_OPS].channel,
-				    &head, &tail, &num)) {
-		head->buf = send_buf;
-		head->len = len;
-		head->next = NULL;
-		sprdwcn_bus_push_list(mdbg_proc_ops[MDBG_AT_TX_OPS].channel,
+	if (sprdwcn_bus_list_alloc(mdbg_proc_ops[MDBG_AT_TX_OPS].channel,
+				   &head, &tail, &num)) {
+		kfree(send_buf);
+		return -ENOMEM;
+	}
+	head->buf = send_buf;
+	head->len = len;
+	head->next = NULL;
+	if (sprdwcn_bus_push_list(mdbg_proc_ops[MDBG_AT_TX_OPS].channel,
+				  head, tail, num)) {
+		head->buf = NULL;
+		sprdwcn_bus_list_free(mdbg_proc_ops[MDBG_AT_TX_OPS].channel,
 				      head, tail, num);
+		kfree(send_buf);
+		return -EIO;
 	}
 	return 0;
 }
@@ -77,7 +86,7 @@ static void loopcheck_work_queue(struct work_struct *work)
 	}
 
 	queue_delayed_work(loopcheck.workqueue, &loopcheck.work,
-			   LOOPCHECK_TIMER_INTERVAL * HZ);
+			   round_jiffies_relative(LOOPCHECK_TIMER_INTERVAL * HZ));
 }
 #endif
 

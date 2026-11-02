@@ -1338,7 +1338,7 @@ static int sprdwl_tx_work_queue(void *data)
 	tx_msg = (struct sprdwl_tx_msg *)data;
 	intf = tx_msg->intf;
 	priv = intf->priv;
-	set_user_nice(current, -20);
+	set_user_nice(current, -5);
 
 	while (1) {
 		tx_down(tx_msg);

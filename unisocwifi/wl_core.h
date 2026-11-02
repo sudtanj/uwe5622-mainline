@@ -37,9 +37,9 @@
 #define SPRDWL_TX_DATA_TIMEOUT	4000
 
 #define SPRDWL_TX_MSG_CMD_NUM 128
-#define SPRDWL_TX_QOS_POOL_SIZE 20000
+#define SPRDWL_TX_QOS_POOL_SIZE 4096
 #define SPRDWL_TX_DATA_START_NUM (SPRDWL_TX_QOS_POOL_SIZE - 3)
-#define SPRDWL_RX_MSG_NUM 20000
+#define SPRDWL_RX_MSG_NUM 2048
 
 /* tx len less than cp len 4 byte as sdiom 4 bytes align */
 /* set MAX CMD length to 1600 on firmware side*/

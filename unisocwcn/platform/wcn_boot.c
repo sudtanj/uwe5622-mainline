@@ -2318,14 +2318,14 @@ static int marlin_reset(int val)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (!IS_ERR_OR_NULL(marlin_dev->reset)) {
 		gpiod_set_value(marlin_dev->reset, 0);
-		mdelay(RESET_DELAY);
+		usleep_range(RESET_DELAY * 1000, RESET_DELAY * 2000);
 		gpiod_set_value(marlin_dev->reset, 1);
 	}
 #else
 	if (marlin_dev->reset > 0) {
 		if (gpio_is_valid(marlin_dev->reset)) {
 			gpio_direction_output(marlin_dev->reset, 0);
-			mdelay(RESET_DELAY);
+			usleep_range(RESET_DELAY * 1000, RESET_DELAY * 2000);
 			gpio_direction_output(marlin_dev->reset, 1);
 		}
 	}
@@ -2407,9 +2407,9 @@ void marlin_chip_en(bool enable, bool reset)
 	} else if (enable) {
 		if (chip_en_count == 0) {
 			gpiod_set_value(marlin_dev->chip_en, 0);
-			mdelay(1);
+			usleep_range(1000, 2000);
 			gpiod_set_value(marlin_dev->chip_en, 1);
-			mdelay(1);
+			usleep_range(1000, 2000);
 			pr_info("marlin chip en pull up\n");
 		}
 		chip_en_count++;
@@ -2433,9 +2433,9 @@ void marlin_chip_en(bool enable, bool reset)
 		} else if (enable) {
 			if (chip_en_count == 0) {
 				gpio_direction_output(marlin_dev->chip_en, 0);
-				mdelay(1);
+				usleep_range(1000, 2000);
 				gpio_direction_output(marlin_dev->chip_en, 1);
-				mdelay(1);
+				usleep_range(1000, 2000);
 				pr_info("marlin chip en pull up\n");
 			}
 			chip_en_count++;
@@ -3371,7 +3371,7 @@ int marlin_reset_reg(void)
 	/* may be we can call reinit_completion api */
 	init_completion(&marlin_dev->carddetect_done);
 	marlin_reset(true);
-	mdelay(1);
+	usleep_range(1000, 2000);
 	sprdwcn_bus_rescan();
 
 	ret = wait_for_completion_timeout(&marlin_dev->carddetect_done,
