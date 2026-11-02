@@ -25,7 +25,7 @@ mkdir -p "$OUT"
 LOG=$OUT/console.log
 
 accel="tcg,thread=multi"
-cmdline="console=ttyAMA0 panic=-1 printk.devkmsg=on loglevel=7 kmemleak=on uwe.tests=$TESTS $EXTRA"
+cmdline="console=ttyAMA0 panic=-1 printk.devkmsg=on loglevel=7 kmemleak=on kasan_multi_shot uwe.tests=$TESTS $EXTRA"
 echo "==> qemu: -m $MEM, tests=$TESTS, timeout ${TIMEOUT}s"
 start=$(date +%s)
 timeout --foreground -k 10 "$TIMEOUT" qemu-system-aarch64 \

@@ -166,6 +166,7 @@ jobs:
         include:
           - { flavour: debug, mem: 1024, tests: lifecycle }
           - { flavour: debug, mem: 2048, tests: lifecycle }
+          - { flavour: debug, mem: 1024, tests: kunit }
           - { flavour: perf, mem: 1024, tests: "lifecycle,metrics" }
     env:
       OUT: ${{ github.workspace }}/out
@@ -184,7 +185,8 @@ jobs:
         run: tests/qemu/run.sh kernel/Image kernel/initramfs.cpio.gz ${{ matrix.mem }} "${{ matrix.tests }}" "$OUT" 2400
       - name: Summary
         if: always()
-        run: tests/lib/tap-summary.sh "QEMU ${{ matrix.flavour }} kernel, ${{ matrix.mem }} MB: ${{ matrix.tests }}" "$OUT/qemu.tap"
+        run: |
+          tests/lib/tap-summary.sh "QEMU ${{ matrix.flavour }} kernel, ${{ matrix.mem }} MB, ${{ matrix.tests }}" "$OUT/qemu.tap"
       - name: Metrics
         if: always() && contains(matrix.tests, 'metrics')
         env:

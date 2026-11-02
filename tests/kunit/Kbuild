@@ -1,0 +1,23 @@
+# KUnit suites for the driver's pure helpers, built as one module,
+# uwe5622_kunit.ko, by tests/qemu/build-kernel.sh (M=tests/kunit,
+# UWE_SRC=<repo>). Each *_test.c #includes the driver source it tests, so
+# static functions are reachable and the code under test is exactly the
+# driver's; compiler flags are the ones the driver's own Makefiles use.
+UWE_SRC ?= $(src)/../..
+WIFI_FLAGS := -I$(UWE_SRC)/unisocwifi -I$(UWE_SRC)/unisocwcn/include \
+	-DIBSS_SUPPORT -DIBSS_RSN_SUPPORT -DNAN_SUPPORT -DRTT_SUPPORT \
+	-DACS_SUPPORT -DRX_HW_CSUM -DWMMAC_WFA_CERTIFICATION -DCOMPAT_SAMPILE_CODE \
+	-DRND_MAC_SUPPORT -DATCMD_ASSERT -DTCPACK_DELAY_SUPPORT -DSPLIT_STACK \
+	-DOTT_UWE -DCP2_RESET_SUPPORT
+WCN_FLAGS := -I$(UWE_SRC)/unisocwcn/include -I$(UWE_SRC)/unisocwcn/platform \
+	-I$(UWE_SRC)/unisocwcn/platform/rf -I$(UWE_SRC)/tty-sdio \
+	-DCONFIG_UWE5622 -DCONFIG_WCN_SDIO -DCONFIG_WCN_SLP -DCONFIG_WCN_SWD \
+	-DCONFIG_WCN_BOOT -DCONFIG_WCN_UTILS -D__linux__ -DCONFIG_AW_BOARD
+
+obj-m := uwe5622_kunit.o
+uwe5622_kunit-y := stubs.o rf_ini_test.o regdom_test.o bufring_test.o
+
+CFLAGS_stubs.o := $(WCN_FLAGS) $(WIFI_FLAGS)
+CFLAGS_rf_ini_test.o := $(WIFI_FLAGS)
+CFLAGS_regdom_test.o := $(WIFI_FLAGS)
+CFLAGS_bufring_test.o := $(WCN_FLAGS)
