@@ -4,27 +4,16 @@
 # flagged as an unexpected pass so the entry can be removed. Every entry
 # names the bug it stands for (see docs/TESTING.md, "Known driver bugs").
 
-# --- found by the QEMU/KUnit jobs (run 41469315171); each stands for one driver bug ---
-# BUG-1 unisocwifi/wl_core.c unisoc_wlan_init/exit: the platform device from
-#   platform_device_alloc() is only platform_device_del()'d, never put, so
-#   every rmmod leaks the device and its name (kmemleak: platform_device_alloc,
-#   dev_set_name). Fix: platform_device_unregister().
+# Driver bugs found by the QEMU/KUnit jobs and fixed in 22ced8b and 17047ed
+# (OTT platform-device leak, prepare_addba tx_num[] index, ini parser
+# overruns, mdbg_ring_write_ext wrap) are no longer listed.
+
+# BUG-5 a probe-path allocation (128 and 512 bytes, allocated under
+#   platform_probe) is still unreferenced after rmmod. The report is
+#   symbolised in the artifact (kmemleak-*.txt).
 kmemleak: nothing leaked by *
-# BUG-2 unisocwifi/tx_msg.c prepare_addba(): intf->tx_num[lut_index] with
-#   lut_index 60 / 253 (tx_num has 32 entries), UBSAN array-index-out-of-bounds
-#   on the first command sent at probe (sprdwl_sync_version).
-no kernel splats during lifecycle-*
-# BUG-3 unisocwifi/rf_marlin3.c (ini parser), see tests/kunit/rf_ini_test.c:
-#   last line without newline dropped; "1z" stored as a number from stale
-#   val; par[512] overrun at 513+ values; strcpy of a 64+ byte key into
-#   itm[64]; tmp[128] overrun by a 129+ byte token.
-kunit: uwe5622_rf_ini: rf_ini_last_line_without_newline
-kunit: uwe5622_rf_ini: rf_ini_bad_number_ignored
-kunit: uwe5622_rf_ini: rf_ini_value_count_capped
-kunit: uwe5622_rf_ini: rf_ini_long_key_contained
-kunit: uwe5622_rf_ini: rf_ini_long_token_contained
-no kernel splats during kunit
-# BUG-4 unisocwcn/platform/bufring.c mdbg_ring_write_ext(): checks
-#   over_loop with MDBG_RING_R instead of _W, so it hands out a region that
-#   runs past the end of the buffer when wp is near the end.
-kunit: uwe5622_bufring: bufring_write_ext_in_bounds
+
+# BUG-6 unisocwifi/reg_domain.c: the "CN" and other tables list a 40 MHz
+#   max bandwidth on a 25 MHz wide rule without NL80211_RRF_AUTO_BW; the
+#   core's own validity check (max_bandwidth <= range) would reject it.
+kunit: uwe5622_regdom: regdom_rules_well_formed

@@ -16,7 +16,7 @@ phase lifecycle-load
 check "insmod $BSP" load $BSP
 eq "$BSP: transport parameter defaults to sdio" sdio "$(cat /sys/module/$BSP/parameters/transport 2>&1)"
 check "uwe_bsp platform driver registered" test -d /sys/bus/platform/drivers/uwe_bsp
-check "uwe_bsp platform device created" test -e /sys/bus/platform/devices/uwe_bsp
+check "uwe_bsp platform device created" sh -c "ls /sys/bus/platform/devices | grep -q ^uwe_bsp"
 t0=$(now_ns)
 check "insmod $WIFI (no chip: probe fails, module stays)" load $WIFI
 t1=$(now_ns)
@@ -41,7 +41,7 @@ check "rmmod $BSP" rmmod $BSP
 check "no driver module left loaded" no_driver_modules
 check_not "rfkill switch gone after rmmod" sh -c 'grep -lx bluetooth /sys/class/rfkill/*/type'
 check_not "ttyBT gone after rmmod" sh -c 'ls /sys/class/tty | grep -q ^ttyBT'
-check_not "uwe_bsp platform device gone after rmmod" test -e /sys/bus/platform/devices/uwe_bsp
+check_not "uwe_bsp platform device gone after rmmod" sh -c "ls /sys/bus/platform/devices | grep -q ^uwe_bsp"
 check_not "unisoc_wifi platform device gone after rmmod" test -e /sys/bus/platform/devices/unisoc_wifi
 check_not "mtty platform device gone after rmmod" test -e /sys/bus/platform/devices/mtty
 kml_check "kmemleak: nothing leaked by one load/unload cycle" single

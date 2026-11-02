@@ -43,10 +43,16 @@ cmdline_get() { sed -n "s/.*$1=\([^ ]*\).*/\1/p" /proc/cmdline; }
 now_ns() { awk '/^now at/ {print $3; exit}' /proc/timer_list; }
 
 mod_loaded() { [ -e "/sys/module/$1/initstate" ]; }
+# Remember module symbols at load time: kmemleak reports are written after
+# rmmod, when their frames are only raw addresses.
+snap_syms() { awk '$4 ~ /^\[/ && $2 ~ /^[tTdDbBrR]$/ { print $1, $3 }' /proc/kallsyms >> /tmp/modsyms; }
 load() {
 	m=$1
 	shift
 	insmod "$M/$m.ko" "$@"
+	r=$?
+	snap_syms
+	return $r
 }
 unload_all() {
 	for m in uwe5622_sim sprdbt_tty sprdwl_ng uwe5622_bsp_sdio; do
@@ -79,6 +85,7 @@ kml_check() {
 	sleep 6
 	echo scan > "$KML"
 	cat "$KML" > "$ATT/kmemleak-$2.txt"
+	symbolise_kml "$ATT/kmemleak-$2.txt"
 	n=$(grep -c 'unreferenced object' "$ATT/kmemleak-$2.txt")
 	if [ "$n" = 0 ]; then
 		ok "$1"
@@ -102,4 +109,23 @@ report() {
 		echo "@@FILE-END@@"
 	done
 	echo "@@END@@"
+}
+
+# symbolise_kml <file>: replace raw module addresses in backtrace lines
+# ("0xffff80007b116054") with "<symbol>+<off>" using /tmp/modsyms. 16-digit
+# lowercase hex compares as a string; the closest lower symbol within 1 MiB wins.
+symbolise_kml() {
+	[ -s /tmp/modsyms ] || return 0
+	awk 'NR == FNR { n++; a[n] = $1; s[n] = $2; next }
+	{
+		if (match($0, /0xffff[0-9a-f]+$/)) {
+			addr = substr($0, RSTART + 2, RLENGTH - 2)
+			best = ""
+			for (i = 1; i <= n; i++)
+				if (a[i] <= addr && (best == "" || a[i] > a[best])) best = i
+			if (best != "" && substr(a[best], 1, 11) == substr(addr, 1, 11))
+				sub(/0xffff[0-9a-f]+$/, s[best] " [module " addr "]")
+		}
+		print
+	}' /tmp/modsyms "$1" > "$1.sym" && mv "$1.sym" "$1"
 }
