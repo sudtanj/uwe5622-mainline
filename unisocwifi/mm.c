@@ -555,7 +555,8 @@ void mm_mh_data_event_process(struct sprdwl_mm *mm_entry, void *data,
 		(struct sprdwl_addr_hdr *)(data + mm_entry->hif_offset);
 	struct sprdwl_addr_trans *addr_trans =
 		(struct sprdwl_addr_trans *)hdr->paydata;
-	struct sprdwl_addr_trans_value *value = addr_trans->value;
+	struct sprdwl_addr_trans_value *value =
+		(struct sprdwl_addr_trans_value *)addr_trans->value;
 	unsigned char tlv_num = addr_trans->tlv_num;
 	int remain_len = len - sizeof(*addr_trans);
 

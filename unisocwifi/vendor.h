@@ -820,7 +820,7 @@ struct wifi_iface_stat {
 	u32 rssi_ack;
 	struct wifi_wmm_ac_stat ac[WIFI_AC_MAX];
 	u32 num_peers;
-	struct wifi_peer_info peer_info[];
+	/* followed by num_peers struct wifi_peer_info, not used by the driver */
 };
 
 /* WiFi Common definitions */

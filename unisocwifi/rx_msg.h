@@ -76,7 +76,8 @@ struct sprdwl_addr_trans_value {
 struct sprdwl_addr_trans {
 	unsigned int timestamp;
 	unsigned char tlv_num;
-	DECLARE_FLEX_ARRAY(struct sprdwl_addr_trans_value, value);
+	/* tlv_num variable-length struct sprdwl_addr_trans_value records */
+	DECLARE_FLEX_ARRAY(u8, value);
 } __packed;
 
 /* NOTE: MUST not modify, defined by HW */
