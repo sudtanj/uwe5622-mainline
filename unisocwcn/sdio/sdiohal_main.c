@@ -1925,22 +1925,21 @@ static void sdiohal_remove(struct sdio_func *func)
 static void sdiohal_launch_thread(void)
 {
 	struct sdiohal_data_t *p_data = sdiohal_get_data();
+	struct task_struct *t;
 
-	p_data->tx_thread =
-		kthread_create(sdiohal_tx_thread, NULL, "sdiohal_tx_thread");
-	if (p_data->tx_thread)
-		wake_up_process(p_data->tx_thread);
-	else {
+	t = kthread_run(sdiohal_tx_thread, NULL, "sdiohal_tx_thread");
+	if (IS_ERR(t)) {
 		sdiohal_err("create sdiohal_tx_thread fail\n");
 		return;
 	}
+	p_data->tx_thread = t;
 
-	p_data->rx_thread =
-	    kthread_create(sdiohal_rx_thread, NULL, "sdiohal_rx_thread");
-	if (p_data->rx_thread)
-		wake_up_process(p_data->rx_thread);
-	else
+	t = kthread_run(sdiohal_rx_thread, NULL, "sdiohal_rx_thread");
+	if (IS_ERR(t)) {
 		sdiohal_err("creat sdiohal_rx_thread fail\n");
+		return;
+	}
+	p_data->rx_thread = t;
 }
 
 static void sdiohal_stop_thread(void)
