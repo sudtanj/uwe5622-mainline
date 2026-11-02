@@ -298,6 +298,7 @@ static void get_cmd_par(char *str, struct nvm_cali_cmd *cmd)
 {
 	int i, j, bufType, cType, flag;
 	char tmp[128];
+	bool trunc = false;
 	char c;
 	long val;
 
@@ -312,8 +313,11 @@ static void get_cmd_par(char *str, struct nvm_cali_cmd *cmd)
 		if ((1 == cType) ||
 			(2 == cType) ||
 			(3 == cType)) {
-			tmp[j] = c;
-			j++;
+			/* a token longer than tmp[] is dropped, not overrun */
+			if (j < (int)sizeof(tmp) - 1)
+				tmp[j++] = c;
+			else
+				trunc = true;
 			if (-1 == bufType) {
 				if (2 == cType)
 					bufType = 2;
@@ -328,17 +332,21 @@ static void get_cmd_par(char *str, struct nvm_cali_cmd *cmd)
 		if (-1 != bufType) {
 			tmp[j] = '\0';
 
-			if ((1 == bufType) && (0 == flag)) {
-				strcpy(cmd->itm, tmp);
+			if (trunc) {
+				wl_info("ini token too long, ignored\n");
+			} else if ((1 == bufType) && (0 == flag)) {
+				strscpy((char *)cmd->itm, tmp, sizeof(cmd->itm));
 				flag = 1;
-			} else {
-				if (kstrtol(tmp, 0, &val))
-					wl_info(" %s ", tmp);
-			/* pr_err("kstrtol %s: error\n", tmp); */
+			} else if (kstrtol(tmp, 0, &val)) {
+				wl_info(" %s ", tmp);
+			} else if (cmd->num < (int)ARRAY_SIZE(cmd->par)) {
 				cmd->par[cmd->num] = val & 0xFFFFFFFF;
 				cmd->num++;
 			}
+			if (trunc && (1 == bufType) && (0 == flag))
+				flag = 1;
 			bufType = -1;
+			trunc = false;
 			j = 0;
 		}
 		if (0 == cType)
@@ -367,34 +375,49 @@ static struct nvm_name_table *cf_table_match(struct nvm_cali_cmd *cmd)
 	return pTable;
 }
 
+static void wifi_nvm_do_line(char *line, struct nvm_cali_cmd *cmd, void *p_data)
+{
+	struct nvm_name_table *pTable;
+	struct wifi_conf_t *conf;
+
+	get_cmd_par(line, cmd);
+	pTable = cf_table_match(cmd);
+	if (!pTable)
+		return;
+	wifi_nvm_set_cmd(pTable, cmd, p_data);
+	if (strcmp(pTable->itm, "rf_config") == 0) {
+		conf = (struct wifi_conf_t *)p_data;
+		conf->rf_config.rf_data_len = cmd->num;
+	}
+}
+
 static int wifi_nvm_buf_operate(char *pBuf, int file_len, void *p_data)
 {
 	int i, p;
 	struct nvm_cali_cmd *cmd;
-	struct wifi_conf_t *conf;
-	struct nvm_name_table *pTable = NULL;
 
-	if ((NULL == pBuf) || (0 == file_len))
+	if ((NULL == pBuf) || (0 >= file_len))
 		return -1;
 
 	cmd = kzalloc(sizeof(struct nvm_cali_cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
 	for (i = 0, p = 0; i < file_len; i++) {
 		if (('\n' == *(pBuf + i)) ||
 			('\r' == *(pBuf + i)) ||
 			('\0' == *(pBuf + i))) {
-			if (5 <= (i - p)) {
-				get_cmd_par((pBuf + p), cmd);
-				pTable = cf_table_match(cmd);
-
-				if (NULL != pTable) {
-					wifi_nvm_set_cmd(pTable, cmd, p_data);
-					if (strcmp(pTable->itm, "rf_config") == 0) {
-						conf = (struct wifi_conf_t *)p_data;
-						conf->rf_config.rf_data_len = cmd->num;
-					}
-				}
-			}
+			if (5 <= (i - p))
+				wifi_nvm_do_line(pBuf + p, cmd, p_data);
 			p = i + 1;
+		}
+	}
+	/* the buffer is not NUL-terminated: copy the last, unterminated line */
+	if (5 <= (file_len - p)) {
+		char *last = kstrndup(pBuf + p, file_len - p, GFP_KERNEL);
+
+		if (last) {
+			wifi_nvm_do_line(last, cmd, p_data);
+			kfree(last);
 		}
 	}
 

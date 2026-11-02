@@ -1196,6 +1196,11 @@ static void prepare_addba(struct sprdwl_intf *intf, unsigned char lut_index,
 		   struct sk_buff *skb, struct sprdwl_peer_entry *peer_entry,
 		   unsigned char tid)
 {
+	/* command messages carry no data descriptor: lut_index is junk there */
+	if (lut_index >= MAX_LUT_NUM || !peer_entry ||
+	    tid >= ARRAY_SIZE(peer_entry->time))
+		return;
+
 	if (intf->tx_num[lut_index] > 9 &&
 		peer_entry &&
 		(peer_entry->ip_acquired || !sprdwl_is_group(skb->data)) &&
@@ -1273,6 +1278,14 @@ int sprdwl_tx_msg_func(void *pdev, struct sprdwl_msg_buf *msg)
 			return -EPERM;
 		}
 #endif
+	/* the descriptor comes from the stack above us; do not trust the index */
+	if (dscr->sta_lut_index >= MAX_LUT_NUM) {
+		wl_err("%s invalid sta_lut_index %u\n", __func__,
+		       dscr->sta_lut_index);
+		INIT_LIST_HEAD(&msg->list);
+		sprdwl_free_msg_buf(msg, msg->msglist);
+		return -EPERM;
+	}
 		/*send group in BK to avoid FW hang*/
 		if ((msg->mode == SPRDWL_MODE_AP ||
 			msg->mode == SPRDWL_MODE_P2P_GO) &&
@@ -1281,10 +1294,12 @@ int sprdwl_tx_msg_func(void *pdev, struct sprdwl_msg_buf *msg)
 			tid = prio_1;
 			wl_debug("%s, %d, SOFTAP/GO group go as BK\n", __func__, __LINE__);
 		} else {
-			intf->tx_num[dscr->sta_lut_index]++;
+			if (dscr->sta_lut_index < MAX_LUT_NUM)
+				intf->tx_num[dscr->sta_lut_index]++;
 		}
 		dscr->buffer_info.msdu_tid = tid;
-		peer_entry = &intf->peer_entry[dscr->sta_lut_index];
+		peer_entry = dscr->sta_lut_index < MAX_LUT_NUM ?
+			&intf->peer_entry[dscr->sta_lut_index] : NULL;
 /*TODO. temp for MARLIN2 test*/
 #if 0
 		qos_index = qos_match_q(&tx_msg->tx_list_data,

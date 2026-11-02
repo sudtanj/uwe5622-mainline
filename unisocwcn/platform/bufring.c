@@ -304,18 +304,22 @@ char *mdbg_ring_write_ext(struct mdbg_ring_t *ring, long int len)
 {
 	char *wp = NULL;
 
-	pr_debug("ring=%p,ring->wp=%p,len=%ld.\n", ring, ring->wp, len);
+	pr_debug("ring=%p,len=%ld.\n", ring, len);
 
 	if ((ring == NULL) || (len == 0)) {
 		pr_err("Ring Write Ext Failed,Param Error!\n");
 		return NULL;
 	}
 
-	if (mdbg_ring_over_loop(ring, len, MDBG_RING_R)
-			|| mdbg_ring_will_full(ring, len)) {
-		pr_debug("Ring Write Ext Failed,Ring State Error!,overloop=%d,full=%d.\n",
-			 mdbg_ring_over_loop(ring, len, MDBG_RING_R),
-			 mdbg_ring_will_full(ring, len));
+	/*
+	 * The region must be contiguous and inside the buffer. Check the write
+	 * pointer without mdbg_ring_over_loop(), which also flips
+	 * p_order_flag as a side effect of a refused request.
+	 */
+	if (len < 0 || (u_long)ring->wp + len > (u_long)mdbg_ring_end(ring) ||
+	    mdbg_ring_will_full(ring, len)) {
+		pr_debug("Ring Write Ext Failed,no contiguous room for %ld.\n",
+			 len);
 		return NULL;
 	}
 	MDBG_RING_LOCK(ring);
