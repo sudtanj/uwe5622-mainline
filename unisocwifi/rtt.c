@@ -617,7 +617,7 @@ out:
 }
 
 static void sprdwl_ftm_event_per_dest_res(struct sprdwl_priv *priv,
-				   struct ftm_per_dest_res *res)
+				   struct ftm_per_dest_res *res, u16 len)
 {
 	u32 i, index;
 	__le64 tmp = 0;
@@ -665,6 +665,9 @@ static void sprdwl_ftm_event_per_dest_res(struct sprdwl_priv *priv,
 		break;
 	}
 
+	/* the firmware's count must fit in the event it sent */
+	n_meas = min_t(u32, n_meas, (len - sizeof(*res)) /
+		       sizeof(res->responder_ftm_res[0]));
 	for (i = 0; i < n_meas; i++) {
 		index = priv->ftm.ftm_res->n_meas;
 		if (index >= priv->ftm.max_ftm_meas) {
@@ -699,18 +702,24 @@ int sprdwl_event_ftm(struct sprdwl_vif *vif, u8 *data, u16 len)
 	u32 status;
 	struct ftm_per_dest_res *res;
 
+	if (len < sizeof(sub_event))
+		return -EINVAL;
 	memcpy(&sub_event, data, sizeof(sub_event));
 	data += sizeof(sub_event);
 	len -= sizeof(sub_event);
 
 	switch (sub_event) {
 	case RTT_SESSION_END:
+		if (len < sizeof(status))
+			return -EINVAL;
 		memcpy(&status, data, sizeof(status));
 		sprdwl_ftm_session_ended(priv, status);
 		break;
 	case RTT_PER_DEST_RES:
+		if (len < sizeof(*res))
+			return -EINVAL;
 		res = (struct ftm_per_dest_res *)data;
-		sprdwl_ftm_event_per_dest_res(priv, res);
+		sprdwl_ftm_event_per_dest_res(priv, res, len);
 		break;
 	default:
 		wl_ndev_log(L_ERR, vif->ndev, "%s: unknown FTM event\n", __func__);
