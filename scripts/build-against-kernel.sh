@@ -45,17 +45,37 @@ tarball_url() {
 	esac
 }
 
+# Mirrors to try after the primary URL. git.kernel.org generates rc and
+# linux-next snapshots on demand and answers with a 5xx while it does, so
+# a GitHub tag archive is the fallback for rc releases.
+fallback_urls() {
+	case "$VER" in
+	*-rc*) echo "https://github.com/torvalds/linux/archive/refs/tags/v$VER.tar.gz" ;;
+	esac
+}
+
 fetch_kernel() {
-	local url=${KERNEL_URL:-$(tarball_url)}
-	local tarball="$WORK/${url##*/}"
+	local url tarball ok=0
 	mkdir -p "$WORK"
-	log "Downloading $url"
-	wget -q --show-progress --progress=dot:giga -O "$tarball" "$url"
+	for url in ${KERNEL_URL:-$(tarball_url)} $(fallback_urls); do
+		tarball="$WORK/${url##*/}"
+		log "Downloading $url"
+		if wget -q --show-progress --progress=dot:giga --tries=5 --waitretry=30 \
+			--retry-connrefused --retry-on-http-error=429,500,502,503,504 \
+			-O "$tarball" "$url"; then
+			ok=1
+			break
+		fi
+		echo "download failed: $url" >&2
+		rm -f "$tarball"
+	done
+	[[ $ok == 1 ]] || { echo "ERROR: could not download linux-$VER" >&2; return 1; }
 	log "Extracting"
 	local tmp="$WORK/extract-$VER"
 	rm -rf "$tmp" && mkdir -p "$tmp"
 	tar -C "$tmp" -xaf "$tarball"
-	# linux-next snapshots extract as linux-next-<ver>, releases as linux-<ver>
+	# releases extract as linux-<ver>, linux-next snapshots as
+	# linux-next-<ver>, GitHub archives as linux-<ver without the v>
 	mv "$tmp"/linux-* "$KDIR"
 	rmdir "$tmp"
 	rm -f "$tarball"

@@ -40,7 +40,7 @@ jobs:
               ([.releases[] | select(.moniker == "stable")] | sort_by(.version | split(".") | map(tonumber? // 0)) | last),
               (.releases[] | select(.moniker == "mainline"))
             ]
-            | map({version: .version, url: .source})
+            | map({version: .version, url: (.source // "")})
             | if ($extra | length) > 0 then . + [{version: $extra, url: ""}] else . end
             | unique_by(.version)
             | {include: .}' <<<"$json")
