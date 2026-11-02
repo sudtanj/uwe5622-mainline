@@ -9,7 +9,7 @@ how to test a build on the board.
 |---|---|---|
 | SDIO data/clock/cmd | `mmc1` (`mmc@4021000`), `mmc1_pins` | 4-bit bus, 1.8 V I/O (`mmc-ddr-1_8v`) |
 | Chip reset (`WL_REG_ON`) | **PG18**, active low | Released by `mmc-pwrseq-simple`, 200 ms post-power-on delay |
-| 32 kHz sleep clock | `rtc` clock output 1 (`osc32k-out`) | Also via the power sequence |
+| 32 kHz sleep clock | `rtc` clock output 1 (`osc32k-fanout`) | Enabled by the power sequence (`clock-names = "ext_clock"`; Armbian's `"osc32k-out"` is never looked up) |
 | 3.3 V supply | fixed regulator from 5 V | Always on |
 | 1.8 V I/O supply | fixed regulator from the 3.3 V | Always on |
 | Bluetooth | over the same SDIO link | No UART; `sprdbt_tty` exposes HCI as a TTY |

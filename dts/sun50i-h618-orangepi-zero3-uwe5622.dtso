@@ -12,6 +12,12 @@
  * Derived from Armbian's
  * arm64-dts-sun50i-h616-orangepi-zero2-zero3-add-wifi.patch (Gunjan Gupta),
  * kept verbatim in dts/patches/ for people who build the full DTB instead.
+ * One deliberate difference: the power sequence names its clock "ext_clock",
+ * the only name the mmc-pwrseq-simple binding allows and the name
+ * drivers/mmc/core/pwrseq_simple.c looks up. With Armbian's "osc32k-out",
+ * devm_clk_get(dev, "ext_clock") returns -ENOENT, which the driver treats as
+ * "no clock": the RTC's 32 kHz fan-out gate is then never enabled, and
+ * clk_disable_unused() turns it off if the bootloader left it on.
  *
  * Requires a base DTB compiled with symbols (dtc -@ / DTC_FLAGS=-@) so that
  * &reg_vcc5v, &rtc, &pio and &mmc1 can be resolved.
@@ -45,8 +51,8 @@
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		clocks = <&rtc 1>;
-		clock-names = "osc32k-out";
+		clocks = <&rtc 1>; /* CLK_OSC32K_FANOUT */
+		clock-names = "ext_clock";
 		reset-gpios = <&pio 6 18 GPIO_ACTIVE_LOW>; /* PG18 */
 		post-power-on-delay-ms = <200>;
 	};

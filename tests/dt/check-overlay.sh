@@ -89,8 +89,8 @@ eq "pwrseq compatible" "mmc-pwrseq-simple" "$(get -t s "$M" "$PWRSEQ" compatible
 eq "mmc1 mmc-pwrseq -> wifi-pwrseq" "$(phandle_of "$PWRSEQ")" "$(get -t u "$M" "$MMC" mmc-pwrseq)"
 eq "pwrseq reset-gpios = <&pio 6 18 GPIO_ACTIVE_LOW> (PG18)" \
 	"$(phandle_of "$PIO") 6 18 1" "$(get -t u "$M" "$PWRSEQ" reset-gpios)"
-eq "pwrseq clocks = <&rtc 1> (osc32k-out)" "$(phandle_of "$RTC") 1" "$(get -t u "$M" "$PWRSEQ" clocks)"
-eq "pwrseq clock-names" "osc32k-out" "$(get -t s "$M" "$PWRSEQ" clock-names)"
+eq "pwrseq clocks = <&rtc 1> (CLK_OSC32K_FANOUT)" "$(phandle_of "$RTC") 1" "$(get -t u "$M" "$PWRSEQ" clocks)"
+eq "pwrseq clock-names = ext_clock (the name pwrseq_simple looks up)" "ext_clock" "$(get -t s "$M" "$PWRSEQ" clock-names)"
 eq "pwrseq post-power-on-delay-ms = 200" "200" "$(get -t u "$M" "$PWRSEQ" post-power-on-delay-ms)"
 eq "rtc provides clock output 1 (#clock-cells = 1)" "1" "$(get -t u "$M" "$RTC" '#clock-cells')"
 
@@ -107,11 +107,26 @@ eq "mmc1 vmmc-supply -> vcc33-wifi" "$(phandle_of "$VCC33")" "$(get -t u "$M" "$
 eq "mmc1 vqmmc-supply -> vcc-wifi-io" "$(phandle_of "$VCCIO")" "$(get -t u "$M" "$MMC" vqmmc-supply)"
 eq "vcc33-wifi fed from reg_vcc5v" "$(phandle_of "$VCC5V")" "$(get -t u "$M" "$VCC33" vin-supply)"
 eq "vcc-wifi-io fed from vcc33-wifi" "$(phandle_of "$VCC33")" "$(get -t u "$M" "$VCCIO" vin-supply)"
-# Nothing else in the base tree may change: compare all nodes but the new ones.
-strip_new() { grep -vE 'vcc33-wifi|vcc-wifi-io|wifi-pwrseq|wifi_pwrseq|reg_vcc33_wifi|reg_vcc_wifi_io' ; }
-dtc -q -I dtb -O dts -s "$OUT/base.dtb" | awk '/mmc@4021000 \{/,/};/ {next} 1' | strip_new > "$OUT/base.cmp"
-dtc -q -I dtb -O dts -s "$M" | awk '/mmc@4021000 \{/,/};/ {next} 1' | strip_new \
-	| awk '/^\t(vcc33-wifi|vcc-wifi-io|wifi-pwrseq) \{/,/^\t};/ {next} 1' > "$OUT/merged.cmp"
+# Nothing else in the base tree may change. drop_nodes deletes whole node
+# blocks (header to the "};" at the same indent) by name, so mmc1 and the new
+# root nodes go including any subnodes; then the new labels in __symbols__
+# are dropped. Block removal must run first: filtering lines by name would
+# delete the headers and leave the bodies behind.
+drop_nodes() { # drop_nodes <ERE matching node names>
+	awk -v re="$1" '
+		skip { if ($0 == ind "};") skip = 0; next }
+		match($0, /^\t*/) && substr($0, RLENGTH + 1) ~ "^(" re ") \\{$" {
+			ind = substr($0, 1, RLENGTH); skip = 1; next
+		}
+		{ print }'
+}
+cmp_tree() {
+	dtc -q -I dtb -O dts -s "$1" |
+		drop_nodes 'mmc@4021000|vcc33-wifi|vcc-wifi-io|wifi-pwrseq' |
+		grep -vE '^\t*(reg_vcc33_wifi|reg_vcc_wifi_io|wifi_pwrseq) = '
+}
+cmp_tree "$OUT/base.dtb" > "$OUT/base.cmp"
+cmp_tree "$M" > "$OUT/merged.cmp"
 if diff -u "$OUT/base.cmp" "$OUT/merged.cmp" > "$OUT/unrelated.diff"; then
 	tap_ok "overlay changes nothing outside mmc1 and its new nodes"
 else
