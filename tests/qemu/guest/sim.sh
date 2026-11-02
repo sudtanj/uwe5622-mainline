@@ -13,12 +13,6 @@ stat() { sed -n "s/.* $1 \([0-9]*\).*/\1/p" /sys/module/$SIM/stats 2>/dev/null; 
 bring_up() {
 	load $BSP transport=external || return 1
 	load $SIM || return 1
-	# Seam gap: the core registers its AT/loopcheck/assert/log channels while
-	# it probes, before an external transport exists, and sprdwcn_bus_chn_init()
-	# silently ignores them. Probing again with the transport in place
-	# registers them. See docs/TESTING.md, "Seams still needed".
-	echo uwe_bsp.0 > /sys/bus/platform/drivers/uwe_bsp/unbind || return 1
-	echo uwe_bsp.0 > /sys/bus/platform/drivers/uwe_bsp/bind || return 1
 	load $WIFI || return 1
 	i=0
 	while [ $i -lt 60 ] && [ ! -e /sys/class/net/$IFN ]; do sleep 1; i=$((i + 1)); done
