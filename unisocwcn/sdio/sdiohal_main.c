@@ -2180,13 +2180,15 @@ int sdiohal_init(void)
 	atomic_set(&p_data->xmit_cnt, SDIOHAL_REMOVE_CARD_VAL);
 	sdiohal_data = p_data;
 
-	if (sdiohal_parse_dt() < 0)
-		return -1;
+	if (sdiohal_parse_dt() < 0) {
+		ret = -EINVAL;
+		goto err_free;
+	}
 
 	ret = sdiohal_misc_init();
 	if (ret != 0) {
 		sdiohal_err("sdiohal_misc_init error :%d\n", ret);
-		return -1;
+		goto err_free;
 	}
 
 	sdiohal_launch_thread();
@@ -2202,6 +2204,11 @@ int sdiohal_init(void)
 	sdiohal_info("sdiohal_init ok\n");
 
 	return 0;
+
+err_free:
+	sdiohal_data = NULL;
+	kfree(p_data);
+	return ret;
 }
 
 void sdiohal_exit(void)

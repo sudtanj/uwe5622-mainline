@@ -719,6 +719,11 @@ static int  mtty_probe(struct platform_device *pdev)
 	create_singlethread_workqueue("SPRDBT_RX_QUEUE");
 	if (!mtty->bt_rx_workqueue) {
 		pr_err("%s SPRDBT_RX_QUEUE create failed", __func__);
+		mtty_tty_driver_exit(mtty);
+		platform_set_drvdata(pdev, NULL);
+		kfree(mtty->port);
+		mtty_destroy_pdata(&pdata);
+		kfree(mtty);
 		return -ENOMEM;
 	}
 	INIT_WORK(&mtty->bt_rx_work, mtty_rx_work_queue);
@@ -826,9 +831,11 @@ static int mtty_remove(struct platform_device *pdev)
 
 	/* Unregister first: its set_block callback must not run during teardown */
 	rfkill_bluetooth_remove(pdev);
+	marlin_reset_callback_unregister(MARLIN_BLUETOOTH, &bluetooth_reset_block);
 	mtty_tty_driver_exit(mtty);
 	sprdwcn_bus_chn_deinit(&bt_rx_ops);
 	sprdwcn_bus_chn_deinit(&bt_tx_ops);
+	mtty_dev = NULL;
 	kfree(mtty->port);
 	mtty_destroy_pdata(&mtty->pdata);
 	flush_workqueue(mtty->bt_rx_workqueue);
