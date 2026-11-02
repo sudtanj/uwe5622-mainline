@@ -144,6 +144,178 @@ the import contained:
 - `/lib/firmware/wifi_2355b001_1ant.ini`, a board tuning file read by the Wi-Fi module
 - rfkill, TTY core (Bluetooth), wakeup IRQs
 
+## Transport interface
+
+The three modules talk to the chip only through `struct sprdwcn_bus_ops`
+(`unisocwcn/include/wcn_bus.h`), reached via the `sprdwcn_bus_*()` inline
+wrappers in the same header. A wrapper whose hook is `NULL` (or with no
+transport registered) returns 0 and does nothing. Wi-Fi (`unisocwifi/`)
+and BT (`tty-sdio/`) never call into `unisocwcn/sdio/`; they use the
+wrappers plus the power API in `include/marlin_platform.h`
+(`start_marlin()`/`stop_marlin()` and helpers exported from
+`platform/wcn_boot.c`). Since Phase 2 the WCN core (`platform/`, `sleep/`)
+does not include `sdio/sdiohal.h` either.
+
+### Registering a transport
+
+- Default: `marlin_probe()` calls `marlin_bus_attach(wcn_sdio_bus_ops())`
+  (`platform/wcn_boot.c`), which does `module_ops_register(ops)`, then
+  `ops->register_rescan_cb(marlin_scan_finish)`, then `ops->preinit()`.
+- `modprobe uwe5622_bsp_sdio transport=external`: the core does not touch
+  SDIO. Another module calls
+  `int wcn_bus_register_transport(struct sprdwcn_bus_ops *ops)`
+  (same three steps; returns `-ENODEV` before the core has probed, `-EBUSY`
+  in SDIO mode or when a transport is already registered) and, before it
+  unloads, `void wcn_bus_unregister_transport(struct sprdwcn_bus_ops *ops)`
+  (calls `ops->deinit()`). Both are `EXPORT_SYMBOL_GPL`. Register before
+  loading `sprdwl_ng`/`sprdbt_tty`; unregister only after they are
+  unloaded (the pointer is read without a lock).
+- Helpers exported for a transport (declared in `wcn_bus.h`, in
+  `unisocwcn/wcn_bus.c`): `bus_chn_init(ops, hif_type)` /
+  `bus_chn_deinit(ops)` (record the channel's `struct mchn_ops_t` and, if
+  `pool_size > 0`, create its mbuf pool), `buf_list_alloc()` /
+  `buf_list_free()` (that pool), `chn_ops(chn)` (the registered callbacks).
+  The SDIO transport simply forwards `chn_init`, `chn_deinit`,
+  `list_alloc`, `list_free` to these (`sdio/sdio_v3.c`).
+
+### Hooks the upper layers use
+
+| Hook | Called by | Contract |
+|---|---|---|
+| `preinit` / `deinit` | core probe/remove, register/unregister | bring the transport up/down |
+| `register_rescan_cb(fn)` | attach | store `fn`; call it when the "card" is present after `rescan` |
+| `driver_register` / `rescan` | `chip_power_on()` | make the chip visible; `rescan` must lead to `fn()` within `CARD_DETECT_WAIT_MS` (3000 ms) or power-on fails |
+| `driver_unregister` / `remove_card` | `chip_power_off()`, power-on error path | SDIO on Allwinner: no-ops |
+| `chn_init(ops)` / `chn_deinit(ops)` | Wi-Fi `sprdwl_intf_init()`, BT `mtty` init (`tty.c`), core `wcn_txrx.c`, `wcn_procfs.c` | register a channel (see table below) |
+| `list_alloc` / `list_free` | TX users | take/return mbufs from the channel's pool |
+| `push_list(chn, head, tail, num)` | everyone | TX channel (< 12): send the list, then give it back with `chn_ops(chn)->pop_link(chn, head, tail, num)`; RX channel (>= 12): the owner returns an RX list it was given, the transport frees it |
+| `push_list_direct` | Wi-Fi data TX (`wl_intf.c`) | as `push_list`, synchronous |
+| `direct_read/write(addr, buf, len)` | firmware download, `check_cp_ready()`, dumps | chip memory access |
+| `read_l/write_l(addr, buf)` | boot handshake | 32-bit chip register access (`sprdwcn_bus_reg_read/write`) |
+| `readbyte/writebyte` | `sleep/`, SWD debug | SDIO AON byte registers; only reached on Zero 3 through the debug/sleep paths (`sdio_int` is inactive without an `int_ap` GPIO) |
+| `runtime_get/put` | after boot / at power-off | may be no-ops |
+| `allow_sleep/sleep_wakeup(subsys)` | Wi-Fi TX | chip sleep handshake; may be no-ops in a mock |
+| `get_rx_mode`, `get_hif_type`, `get_irq_type`, `get_blk_size`, `get_tx_mode` | Wi-Fi `mm.c`, `wl_intf.c`, core | SDIO returns `HW_TYPE_SDIO` (0) for `get_hif_type`; Wi-Fi selects its SDIO channel table only for 0 |
+| `get/set_carddump_status`, `get_rx_total_cnt`, `dump_regs`, `hw_reset` | assert/dump/debug paths | optional |
+
+`mchn_ops_t.pop_link(chn, head, tail, num)` is the only upcall: the
+transport calls it from process context (the SDIO transport calls it from
+its RX/TX threads with a per-channel mutex held), one call per channel at
+a time.
+
+### Buffer layout
+
+Every buffer starts with a 4-byte public header (`PUB_HEAD_RSV`,
+`struct sdio_puh_t` in `wcn_bus.h`, little-endian bitfields: `pad:6`,
+`check_sum:1`, `len:16`, `eof:1`, `subtype:4`, `type:4`).
+
+- TX: the sender allocates `len + 4` bytes, leaves the first 4 bytes for the
+  transport and sets `mbuf->buf` to the start, `mbuf->len` to the payload
+  length *without* the header (`if_tx_one()` in `unisocwifi/wl_intf.c`,
+  `marlin_sdio_write()` in `tty-sdio/tty.c`, `at_cmd_send()` in
+  `platform/loopcheck.c`). The SDIO transport fills the header with
+  `type = 0`, `subtype = chn`. After sending, the list goes back via
+  `pop_link`; Wi-Fi/BT free `mbuf->buf` there and return the mbufs to the pool.
+- RX: the transport allocates the mbufs and buffers, `mbuf->buf` points at
+  the 4-byte header, payload follows; the payload length is `puh->len`
+  (`mbuf->len` is the buffer size). For RX channel `c` the header has
+  `subtype = c - 12`. The owner returns the list with `push_list(c, ...)`.
+
+### Channels (Allwinner SDIO build)
+
+TX channels are 0..11 (`subtype = chn`), RX channels 12..25
+(`subtype = chn - 12`) (`sdiohal_hwtype_to_channel()`,
+`sdio/sdiohal_common.c`).
+
+| Chn | Dir | Owner | Purpose | Pool |
+|---|---|---|---|---|
+| 0 | TX | core `WCN_AT_TX` (`platform/wcn_procfs.c`) | AT commands to firmware | 5 |
+| 3 | TX | BT `BT_TX_CHANNEL` (`tty-sdio/tty.h`) | HCI host→controller | 64 |
+| 8 | TX | Wi-Fi `SDIO_TX_CMD_PORT` (`unisocwifi/wl_intf.h`) | commands | 10 |
+| 10 | TX | Wi-Fi `SDIO_TX_DATA_PORT` | data frames | 800 |
+| 12 | RX | core `WCN_LOOPCHECK_RX` | loopcheck replies | 1 |
+| 13 | RX | core `WCN_AT_RX` | AT command replies | 1 |
+| 14 | RX | core `WCN_ASSERT_RX` | firmware assert text | 1 |
+| 15 | RX | core `WCN_RING_RX` (`platform/wcn_txrx.c`) | firmware log | 1 |
+| 17 | RX | BT `BT_RX_CHANNEL` | HCI controller→host | 1 |
+| 22 | RX | Wi-Fi `SDIO_RX_CMD_PORT` | command responses and events | 1 |
+| 23 | RX | Wi-Fi `SDIO_RX_PKT_LOG_PORT` | packet log | 1 |
+| 24 | RX | Wi-Fi `SDIO_RX_DATA_PORT` | data frames | 1 |
+
+RX "pool" sizes are what the owners request; SDIO allocates RX buffers itself.
+
+### Firmware boot handshake
+
+`start_marlin(subsys)` → `marlin_set_power(subsys, 1)` (`wcn_boot.c`). On
+the first power-on, with `power_lock` held:
+
+1. `chip_power_on()`: regulators/GPIOs (no-ops on Zero 3), then
+   `driver_register()`, `rescan()`; wait up to 3000 ms for the rescan
+   callback.
+2. Sets the subsystem bit in `power_state`, queues `download_wq`
+   (`pre_btwifi_download_sdio()`) and waits up to `POWERUP_WAIT_MS`
+   (30 s) for `download_done`.
+3. `wcn_get_chip_name()` → `marlin_get_wcn_chipid()`: `read_l(CHIPID_REG
+   = 0x4083c208)`; UWE5622 answers `0x2355B000`..`0x2355B003` (AA..AD).
+4. `btwifi_download_firmware()`: reads up to `FIRMWARE_MAX_SIZE`
+   (0xe7400) bytes of `wcnmodem.bin` with `kernel_read()` from
+   `/lib/firmware/uwe5622/` then `/lib/firmware/` (not `request_firmware()`:
+   `is_btwf_in_sysfs` is forced on Allwinner). If the first two bytes are
+   0, an 8-byte function mask is skipped. Image formats (`struct head`
+   `{char magic[4]; u32 version; u32 img_count;}` followed by entries):
+   - `"WCNM"`: `struct imageinfo {char tag[4]; u32 offset; u32 size;}`;
+     the entry tagged `MLAA`/`MLAB`/`MLAC`/`MLAD` for the chip id is
+     written to `CP_START_ADDR` (0x40500000).
+   - `"WCNE"`: `struct combin_img_info {u32 addr; u32 offset; u32 size;}`;
+     each entry is written to its `addr`.
+   - otherwise the whole buffer is written to `CP_START_ADDR`.
+   Writes are `direct_write()` calls of at most `PACKET_SIZE` (32 KiB)
+   at increasing addresses.
+5. `marlin_start_run()`: `read_l(CP_RESET_REG = 0x40088288)`, clear bit 0
+   (`RESET_BIT`), `write_l` it back (releases the chip CPU), `read_l` again.
+6. `check_cp_clock_mode()`: `write_l(SPI_BASE_ADDR = 0x408a0000,
+   (0x5030 << 16) | BIT(31))`, sleep 4–6 ms, `read_l` it; bit 15 of the
+   low half selects "TSX" vs "TCXO" in the log only.
+7. `marlin_write_cali_data()`: poll `read_l(SYNC_ADDR = 0x405E73B0)` every
+   20 ms until it reads `0xF0F0F0F1` (`SYNC_CALI_WAITING`); then
+   `write_l(SYNC_ADDR + 0x1c, sdio_config)` (`sdio_config_en = 1`,
+   `wake_host_level_duration_10ms = 2`, see
+   `marlin_send_sdio_config_to_cp_vendor()`) and
+   `write_l(SYNC_ADDR, 0xF0F0F0F2)` (`SYNC_CALI_WRITE_DONE`). After 11
+   polls without the value it gives up silently and continues.
+8. `check_cp_ready()`: `direct_read(SYNC_ADDR, 80 bytes)`
+   (`struct wcn_sync_info_t`) every 20 ms until `init_status` (first
+   word) is `0xF0F0F0FF` (`SYNC_ALL_FINISHED`); after 11 tries it sets
+   card-dump status and returns, so step 2 times out after 30 s and
+   power-on fails.
+9. `runtime_get()`; `get_cp2_version()` sends `"at+spatgetcp2info\r\n\0"`
+   (20 bytes) on channel 0 and waits up to 3 s for any reply on channel 13;
+   `switch_cp2_log(false)` sends `"at+armlog=0\r\n"` in a 32-byte buffer and
+   waits up to 3 s on channel 13. Missing replies only log an error.
+10. `complete(download_done)`; `marlin_set_power()` returns 0. With one
+    subsystem on, `start_loopcheck()` sends `"at+loopcheck\r\n\0"` on
+    channel 0 after 1 s and then every 5 s; no reply on channel 12 within
+    3 s triggers `mdbg_assert_interface("loopcheck fail")` (dump/reset path).
+
+Later `start_marlin()` calls only set the subsystem bit; the last
+`stop_marlin()` calls `chip_power_off()`.
+
+### Wi-Fi protocol on top
+
+Messages on channels 8/22 start (after the 4-byte bus header) with
+`struct sprdwl_cmd_hdr` (`unisocwifi/msg.h`): `common` byte
+(`type:3` = 0 cmd / 1 event / 2 data / 3 data-special / 5 pkt-log,
+`rsp:1`, `ctx_id:3`), `cmd_id`, `__le16 plen` (including the header),
+`__le32 mstime`, `s8 status`, `rsp_cnt`, 2 reserved bytes, payload. A
+command response is sent back with the same `cmd_id`, type cmd, and
+`status` 0 on success. `sprdwl_core_init()` (`main.c`) issues, in order,
+`WIFI_CMD_SYNC_VERSION` (9), `WIFI_CMD_DOWNLOAD_INI` (76, several
+chunks), `WIFI_CMD_GET_INFO` (1), then interface setup commands. Data TX
+on channel 10 needs credits: the firmware grants them with event
+`WIFI_EVENT_SDIO_FLOWCON` (0xB3) whose first 4 payload bytes are per-AC
+credit counts (`sprdwl_sdio_process_credit()`, `tx_msg.c`), or in the
+`rsvd5` byte of RX data-special descriptors.
+
 ## Goals of the rewrite
 
 In priority order:
