@@ -76,6 +76,11 @@ also builds with `W=1` and `sparse` and fails on any warning not listed in
 `.github/known-warnings.txt`, and runs `checkpatch` on the diff of each change
 (informational).
 
+`.github/workflows/test.yml` adds static analysis, device-tree checks against the
+real Zero 3 DTB, KUnit suites, and QEMU runs of the modules under a KASAN/lockdep
+kernel, including a simulated chip. What each proves is in
+[`docs/TESTING.md`](docs/TESTING.md).
+
 ## Syncing with Armbian
 
 ```sh
