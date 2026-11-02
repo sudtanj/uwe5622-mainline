@@ -1,0 +1,28 @@
+#!/bin/busybox sh
+# PID 1 of the QEMU guest. Runs the test scripts named on the kernel
+# command line (uwe.tests=lifecycle,metrics,...), then prints the results
+# block that tests/qemu/run.sh parses, and powers off.
+/bin/busybox --install -s
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mount -t tmpfs tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null
+mount -t tracefs tracefs /sys/kernel/tracing 2>/dev/null
+ip link set lo up 2>/dev/null
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+. /tests/lib.sh
+
+echo "@@BEGIN@@ $(uname -r) cpus=$(grep -c ^processor /proc/cpuinfo) $(grep MemTotal /proc/meminfo)"
+for t in $(cmdline_get uwe.tests | tr , ' '); do
+	if [ -f "/tests/$t.sh" ]; then
+		phase "$t"
+		sh "/tests/$t.sh"
+		unload_all
+	else
+		nok "test script $t exists"
+	fi
+done
+phase report
+report
+poweroff -f

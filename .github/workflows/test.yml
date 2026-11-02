@@ -109,3 +109,105 @@ jobs:
         with:
           name: dt
           path: ${{ runner.temp }}/w/out-dt/
+
+  qemu-kernel:
+    name: qemu kernel (${{ matrix.flavour }})
+    needs: lts
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        flavour: [debug, perf]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends build-essential flex bison bc \
+            libssl-dev libelf-dev cpio busybox-static iw rfkill wpasupplicant file
+      - id: key
+        run: echo "key=qemu-kernel-${{ needs.lts.outputs.version }}-${{ matrix.flavour }}-${{ hashFiles('tests/qemu/config/**') }}" >> "$GITHUB_OUTPUT"
+      - id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/w/kbuild-${{ matrix.flavour }}
+          key: ${{ steps.key.outputs.key }}
+      - name: Build kernel and modules
+        run: tests/qemu/build-kernel.sh "${{ needs.lts.outputs.version }}" "$RUNNER_TEMP/w" ${{ matrix.flavour }}
+      - uses: actions/cache/save@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/w/kbuild-${{ matrix.flavour }}
+          key: ${{ steps.key.outputs.key }}
+      - name: Build initramfs
+        run: tests/qemu/build-initramfs.sh "$RUNNER_TEMP/w/out-${{ matrix.flavour }}/modules" "$RUNNER_TEMP/w/out-${{ matrix.flavour }}/initramfs.cpio.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-${{ matrix.flavour }}
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/Image
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/.config
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/System.map
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/initramfs.cpio.gz
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/modules/
+            ${{ runner.temp }}/w/out-${{ matrix.flavour }}/*.log
+          include-hidden-files: true
+
+  qemu:
+    name: qemu (${{ matrix.flavour }}, ${{ matrix.mem }} MB, ${{ matrix.tests }})
+    needs: [lts, qemu-kernel]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { flavour: debug, mem: 1024, tests: lifecycle }
+          - { flavour: debug, mem: 2048, tests: lifecycle }
+          - { flavour: perf, mem: 1024, tests: "lifecycle,metrics" }
+    env:
+      OUT: ${{ github.workspace }}/out
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install QEMU
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends qemu-system-arm binutils
+          ls -l /dev/kvm 2>/dev/null || echo "no /dev/kvm: TCG only (needed anyway for -cpu cortex-a53)"
+      - uses: actions/download-artifact@v4
+        with:
+          name: qemu-${{ matrix.flavour }}
+          path: kernel
+      - name: Run tests in QEMU
+        run: tests/qemu/run.sh kernel/Image kernel/initramfs.cpio.gz ${{ matrix.mem }} "${{ matrix.tests }}" "$OUT" 2400
+      - name: Summary
+        if: always()
+        run: tests/lib/tap-summary.sh "QEMU ${{ matrix.flavour }} kernel, ${{ matrix.mem }} MB: ${{ matrix.tests }}" "$OUT/qemu.tap"
+      - name: Metrics
+        if: always() && contains(matrix.tests, 'metrics')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tests/qemu/metrics.py collect --out "$OUT/metrics.json" \
+            --kernel "${{ needs.lts.outputs.version }}" --flavour ${{ matrix.flavour }} \
+            --mem ${{ matrix.mem }} --modules kernel/modules "$OUT/metrics.txt"
+          # previous metrics.json: newest unexpired artifact of a main run
+          id=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=metrics-${{ matrix.flavour }}&per_page=30" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main" and .workflow_run.id != ${{ github.run_id }})][0].id // empty' || true)
+          prev=""
+          if [ -n "$id" ]; then
+            gh api "repos/${{ github.repository }}/actions/artifacts/$id/zip" > prev.zip && unzip -o -q prev.zip -d prev && prev=prev/metrics.json
+          fi
+          python3 tests/qemu/metrics.py compare --cur "$OUT/metrics.json" ${prev:+--prev "$prev"} --summary "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && contains(matrix.tests, 'metrics')
+        with:
+          name: metrics-${{ matrix.flavour }}
+          path: ${{ github.workspace }}/out/metrics.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qemu-log-${{ matrix.flavour }}-${{ matrix.mem }}-${{ strategy.job-index }}
+          path: ${{ github.workspace }}/out/
