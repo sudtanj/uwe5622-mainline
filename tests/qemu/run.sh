@@ -30,7 +30,7 @@ echo "==> qemu: -m $MEM, tests=$TESTS, timeout ${TIMEOUT}s"
 start=$(date +%s)
 timeout --foreground -k 10 "$TIMEOUT" qemu-system-aarch64 \
 	-M virt -cpu cortex-a53 -smp 4 -m "$MEM" -accel "$accel" \
-	-nographic -no-reboot -monitor none -serial stdio \
+	-nographic -nic none -no-reboot -monitor none -serial stdio \
 	-kernel "$IMAGE" -initrd "$INITRD" -append "$cmdline" \
 	< /dev/null 2>&1 | tr -d '\r' > "$LOG"
 rc=${PIPESTATUS[0]}
