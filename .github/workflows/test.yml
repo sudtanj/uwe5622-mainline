@@ -168,7 +168,8 @@ jobs:
           - { flavour: debug, mem: 2048, tests: lifecycle }
           - { flavour: debug, mem: 1024, tests: kunit }
           - { flavour: debug, mem: 1024, tests: sim }
-          - { flavour: perf, mem: 1024, tests: "lifecycle,metrics" }
+          - { flavour: perf, mem: 1024, tests: "lifecycle,metrics,simmetrics" }
+          - { flavour: debug, mem: 1024, tests: soak }
     env:
       OUT: ${{ github.workspace }}/out
     steps:

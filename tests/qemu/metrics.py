@@ -42,8 +42,9 @@ HEADLINE = (
     ("sim.up.pinned_kb", "Sim: pinned memory with wlan0 up (kB)"),
     ("sim.assoc.irq_per_s", "Sim: interrupts/s idle, associated"),
     ("sim.assoc.driver_kthread_cpu_ms", "Sim: driver kthread CPU idle, associated (ms)"),
-    ("sim.tput.mbit_s", "Sim: data path throughput (Mbit/s)"),
-    ("sim.tput.cpu_ms_per_mbit", "Sim: CPU per Mbit (ms)"),
+    ("sim.tput.tx_frames", "Sim: TX frames seen by the chip over 100 pings"),
+    ("sim.tput.cpu_ticks_per_100_pings", "Sim: CPU ticks for 100 pings"),
+    ("sim.down_residue.pinned_kb", "Sim: pinned memory left after unload (kB)"),
 )
 
 
