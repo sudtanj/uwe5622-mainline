@@ -35,7 +35,7 @@ want_config() {
 configure() {
 	make -C "$KSRC" O="$KOBJ" allnoconfig >/dev/null
 	want_config >> "$KOBJ/.config"
-	make -C "$KSRC" O="$KOBJ" olddefconfig >/dev/null
+	make -C "$KSRC" O="$KOBJ" olddefconfig 2>&1 | grep -v "override: reassigning" || true
 	# Every requested option must survive olddefconfig (a dropped one
 	# means a missing dependency in the fragment).
 	local line sym val got bad=0
