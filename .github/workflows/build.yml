@@ -102,7 +102,7 @@ jobs:
           fi
           grep -E '(warning|error):' "$RUNNER_TEMP/warnings.log" \
             | sed -E "s#^$PWD/##" | sort -u > "$RUNNER_TEMP/warnings.txt" || true
-          grep -vE '^\s*(#|$)' .github/known-warnings.txt > "$RUNNER_TEMP/known.txt"
+          grep -vE '^\s*(#|$)' .github/known-warnings.txt > "$RUNNER_TEMP/known.txt" || true
           grep -vE -f "$RUNNER_TEMP/known.txt" "$RUNNER_TEMP/warnings.txt" > "$RUNNER_TEMP/unexpected.txt" || true
           total=$(wc -l < "$RUNNER_TEMP/warnings.txt")
           unexpected=$(wc -l < "$RUNNER_TEMP/unexpected.txt")
