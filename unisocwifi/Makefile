@@ -49,6 +49,7 @@ sprdwl_ng-objs += rtt.o
 sprdwl_ng-objs += api_version.o
 sprdwl_ng-objs += rnd_mac_addr.o
 sprdwl_ng-objs += debug.o
+sprdwl_ng-objs += parse.o
 #sprdwl_ng-objs += 11h.o
 
 obj-$(CONFIG_WLAN_UWE5622) += sprdwl_ng.o

@@ -36,8 +36,10 @@ int sprdwl_send_cmd(struct sprdwl_priv *priv, struct sprdwl_msg_buf *msg);
 
 unsigned short sprdwl_rx_data_process(struct sprdwl_priv *priv,
 				      unsigned char *msg);
-unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg);
-unsigned short sprdwl_rx_rsp_process(struct sprdwl_priv *priv, u8 *msg);
+unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg,
+				       size_t avail);
+unsigned short sprdwl_rx_rsp_process(struct sprdwl_priv *priv, u8 *msg,
+				     size_t avail);
 void sprdwl_rx_skb_process(struct sprdwl_priv *priv, struct sk_buff *pskb);
 void sprdwl_rx_send_cmd_process(struct sprdwl_priv *priv, void *data, int len,
 				unsigned char id, unsigned char ctx_id);

@@ -38,6 +38,7 @@
 #include <linux/kthread.h>
 #ifdef WMMAC_WFA_CERTIFICATION
 #include "qos.h"
+#include "parse.h"
 #endif
 #include <linux/completion.h>
 
@@ -885,6 +886,11 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 		}
 #endif
 		/* Version 1 Section */
+		if (r_len < SEC1_LEN) {
+			wl_err("%s short GET_INFO response: %u\n", __func__, r_len);
+			ret = -EBADMSG;
+			goto out;
+		}
 		p = (struct sprdwl_cmd_fw_info *)r_buf;
 		priv->chip_model = le32_to_cpu(p->chip_model);
 		priv->chip_ver = le32_to_cpu(p->chip_version);
@@ -897,7 +903,7 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 		priv->wnm_ft_support = p->wnm_ft_support;
 		len_count += SEC1_LEN;
 		/*check sec2 data length got from fw*/
-		if ((r_len - len_count) >= sizeof(struct wiphy_sec2_t)) {
+		if (r_len >= len_count + sizeof(struct wiphy_sec2_t)) {
 			priv->wiphy_sec2_flag = 1;
 			wl_info("save wiphy section2 info to sprdwl_priv\n");
 			memcpy(&priv->wiphy_sec2, &p->wiphy_sec2,
@@ -907,7 +913,7 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 		}
 		len_count += sizeof(struct wiphy_sec2_t);
 
-		if ((r_len - len_count) >= ETH_ALEN) {
+		if (r_len >= len_count + ETH_ALEN) {
 			ether_addr_copy(priv->mac_addr, p->mac_addr);
 		} else {
 			memset(priv->mac_addr, 0x00, ETH_ALEN);
@@ -915,7 +921,7 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 		}
 		len_count += ETH_ALEN;
 
-		if ((r_len - len_count) >= 1)
+		if (r_len >= len_count + 1)
 			priv->credit_capa = p->credit_capa;
 		else
 			priv->credit_capa = TX_WITH_CREDIT;
@@ -925,14 +931,21 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 			/* Set default value for non-version-1 variable */
 			priv->ott_supt = OTT_NO_SUPT;
 		} else {
+			struct sprdwl_tlv_iter it;
+			const u8 *val;
+			u16 type, vlen;
+			int rc;
+
 			len_count = sizeof(struct sprdwl_cmd_fw_info);
-			tlv = (struct sprdwl_tlv_data *)((u8 *)r_buf + len_count);
-			while ((len_count + sizeof(struct sprdwl_tlv_data) + tlv->len) <= r_len) {
+			if (r_len < len_count)
+				goto out;
+			sprdwl_tlv_init(&it, r_buf + len_count, r_len - len_count);
+			while ((rc = sprdwl_tlv_next(&it, &type, &vlen, &val)) > 0) {
 				b_tlv_data_chk = false;
-				switch (tlv->type) {
+				switch (type) {
 				case GET_INFO_TLV_TP_OTT:
-					if (tlv->len == 1) {
-						priv->ott_supt = *((unsigned char *)(tlv->data));
+					if (vlen == 1) {
+						priv->ott_supt = val[0];
 						b_tlv_data_chk = true;
 					}
 					break;
@@ -941,17 +954,15 @@ int sprdwl_get_fw_info(struct sprdwl_priv *priv)
 				}
 
 				wl_info("%s, TLV type=%d, len=%d, data_chk=%d\n",
-					__func__, tlv->type, tlv->len, b_tlv_data_chk);
+					__func__, type, vlen, b_tlv_data_chk);
 
 				if (b_tlv_data_chk == false) {
 					wl_err("%s TLV check failed: type=%d, len=%d\n",
-					       __func__, tlv->type, tlv->len);
+					       __func__, type, vlen);
 					goto out;
 				}
-
-				len_count += (sizeof(struct sprdwl_tlv_data) + tlv->len);
-				tlv = (struct sprdwl_tlv_data *)((u8 *)r_buf + len_count);
 			}
+			len_count = r_len - it.left;
 
 			if (r_len_ori <= r_len) {
 				wl_warn("%s check tlv rbuf size: r_len_ori=%d, r_len=%d\n",
@@ -2538,7 +2549,8 @@ static int handle_rsp_status_err(u8 cmd_id, s8 status)
 }
 
 /* retrun the msg length or 0 */
-unsigned short sprdwl_rx_rsp_process(struct sprdwl_priv *priv, u8 *msg)
+unsigned short sprdwl_rx_rsp_process(struct sprdwl_priv *priv, u8 *msg,
+				     size_t avail)
 {
 	u16 plen;
 	void *data;
@@ -2563,10 +2575,10 @@ unsigned short sprdwl_rx_rsp_process(struct sprdwl_priv *priv, u8 *msg)
 #endif
 		hdr->cmd_id > WIFI_CMD_MAX ||
 	    plen < sizeof(*hdr) ||
-	    plen > 2048) {
-		wl_err("%s wrong CMD_RSP: ctx_id:%d;cmd_id:%d\n",
+	    sprdwl_msg_check(msg, avail) < 0) {
+		wl_err("%s wrong CMD_RSP: ctx_id:%d;cmd_id:%d;len:%u/%zu\n",
 		       __func__, hdr->common.ctx_id,
-		       hdr->cmd_id);
+		       hdr->cmd_id, plen, avail);
 		return 0;
 	}
 	if (atomic_inc_return(&cmd->refcnt) >= SPRDWL_CMD_EXIT_VAL) {
@@ -2621,9 +2633,14 @@ static void sprdwl_event_station(struct sprdwl_vif *vif, u8 *data, u16 len)
 {
 	struct sprdwl_event_new_station *sta =
 	    (struct sprdwl_event_new_station *)data;
+	u16 ie_len = get_unaligned_le16(&sta->ie_len);
 
-	sprdwl_report_softap(vif, sta->is_connect,
-			     sta->mac, sta->ie, le16_to_cpu(sta->ie_len));
+	if (!sprdwl_len_ok(len, sizeof(*sta), ie_len)) {
+		wl_ndev_log(L_ERR, vif->ndev, "%s ie_len %u > %u\n", __func__,
+			    ie_len, len);
+		return;
+	}
+	sprdwl_report_softap(vif, sta->is_connect, sta->mac, sta->ie, ie_len);
 }
 
 void sprdwl_event_scan_done(struct sprdwl_vif *vif, u8 *data, u16 len)
@@ -2846,6 +2863,11 @@ void sprdwl_event_frame(struct sprdwl_vif *vif, u8 *data, u16 len, int flag)
 	channel = frame->channel;
 	type = frame->type;
 	buf_len = SPRDWL_GET_LE16(frame->len);
+	if (!sprdwl_len_ok(len, flag ? 0 : sizeof(*frame), buf_len)) {
+		wl_ndev_log(L_ERR, vif->ndev, "%s frame len %u > %u\n",
+			    __func__, buf_len, len);
+		return;
+	}
 
 	sprdwl_cfg80211_dump_frame_prot_info(0, 0, buf, buf_len);
 
@@ -3385,7 +3407,56 @@ static const char *evt2str(u8 evt)
 #undef E2S
 
 /* retrun the msg length or 0 */
-unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg)
+/*
+ * Smallest payload each event handler dereferences as a fixed struct.
+ * Handlers with variable-length parts check the rest themselves.
+ */
+static size_t sprdwl_evt_min_len(u8 evt_id)
+{
+	switch (evt_id) {
+	case WIFI_EVENT_NEW_STATION:
+		return sizeof(struct sprdwl_event_new_station);
+	case WIFI_EVENT_MGMT_FRAME:
+		return sizeof(struct sprdwl_event_mgmt_frame);
+	case WIFI_EVENT_GSCAN_FRAME:
+		return sizeof(u32);
+	case WIFI_EVENT_RSSI_MONITOR:
+		return sizeof(struct rssi_monitor_event);
+	case WIFI_EVENT_SCAN_DONE:
+		return sizeof(struct sprdwl_event_scan_done);
+	case WIFI_EVENT_MIC_FAIL:
+		return sizeof(struct sprdwl_event_mic_failure);
+	case WIFI_EVENT_CQM:
+		return sizeof(struct sprdwl_event_cqm);
+	case WIFI_EVENT_MGMT_TX_STATUS:
+		return sizeof(struct sprdwl_event_mgmt_tx_status);
+	case WIFI_EVENT_TDLS:
+		return sizeof(struct sprdwl_event_tdls);
+	case WIFI_EVENT_SUSPEND_RESUME:
+		return sizeof(struct sprdwl_event_suspend_resume);
+	case WIFI_EVENT_BA:
+		return sizeof(struct sprdwl_event_ba);
+	case WIFI_EVENT_RTT:
+		return sizeof(u8);
+	case WIFI_EVENT_HANG_RECOVERY:
+		return sizeof(struct event_hang_recovery);
+	case WIFI_EVENT_THERMAL_WARN:
+		return sizeof(struct event_thermal_warn);
+	case WIFI_EVENT_WFD_MIB_CNT:
+		return sizeof(struct event_wfd_mib_cnt);
+	case WIFI_EVENT_CHAN_CHANGED:
+		return sizeof(struct sprdwl_chan_changed_info);
+	case WIFI_EVENT_COEX_BT_ON_OFF:
+		return sizeof(struct event_coex_mode_changed);
+	case WIFI_EVENT_SDIO_FLOWCON:
+		return 4;
+	default:
+		return 0;
+	}
+}
+
+unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg,
+				       size_t avail)
 {
 	struct sprdwl_cmd_hdr *hdr = (struct sprdwl_cmd_hdr *)msg;
 	struct sprdwl_vif *vif;
@@ -3405,8 +3476,9 @@ unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg)
 	}
 
 	plen = SPRDWL_GET_LE16(hdr->plen);
-	if (plen < sizeof(*hdr)) {
-		wl_err("%s invalid event length: %u\n", __func__, plen);
+	if (plen < sizeof(*hdr) || sprdwl_msg_check(msg, avail) < 0) {
+		wl_err("%s invalid event length: %u/%zu\n", __func__, plen,
+		       avail);
 		return 0;
 	}
 	if (!priv) {
@@ -3424,6 +3496,11 @@ unsigned short sprdwl_rx_event_process(struct sprdwl_priv *priv, u8 *msg)
 			     (u8 *)hdr, le16_to_cpu(hdr->plen), 0);
 
 	len = plen - sizeof(*hdr);
+	if (len < sprdwl_evt_min_len(hdr->cmd_id)) {
+		wl_err("%s short event %s: %u bytes\n", __func__,
+		       evt2str(hdr->cmd_id), len);
+		return plen;
+	}
 	vif = ctx_id_to_vif(priv, ctx_id);
 	if (!vif) {
 		wl_info("%s NULL vif for ctx_id: %d, len:%d\n",

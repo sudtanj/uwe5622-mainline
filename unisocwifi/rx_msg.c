@@ -29,6 +29,7 @@
 #include <wcn_fs.h>
 #include "debug.h"
 #include "tcp_ack.h"
+#include "parse.h"
 
 #ifdef RX_HW_CSUM
 static bool mh_ipv6_ext_hdr(unsigned char nexthdr)
@@ -317,7 +318,9 @@ static void sprdwl_rx_work_queue(struct work_struct *work)
 				if (msg->len > SPRDWL_MAX_CMD_RXLEN)
 					wl_err("err rx cmd too long:%d > %d\n",
 					       len, SPRDWL_MAX_CMD_RXLEN);
-				sprdwl_rx_rsp_process(priv, data);
+				sprdwl_rx_rsp_process(priv, data,
+					sprdwl_rx_avail(tran_data, len,
+							intf->hif_offset));
 				break;
 			case SPRDWL_TYPE_PKT_LOG:
 				if (sprdwl_pkt_log_save(intf, data) == 1)
@@ -328,7 +331,9 @@ static void sprdwl_rx_work_queue(struct work_struct *work)
 				if (msg->len > SPRDWL_MAX_CMD_RXLEN)
 					wl_err("err rx event too long:%d > %d\n",
 					       len, SPRDWL_MAX_CMD_RXLEN);
-				sprdwl_rx_event_process(priv, data);
+				sprdwl_rx_event_process(priv, data,
+					sprdwl_rx_avail(tran_data, len,
+							intf->hif_offset));
 				break;
 			case SPRDWL_TYPE_DATA_SPECIAL:
 				debug_ts_leave(RX_SDIO_PORT);
