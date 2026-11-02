@@ -24,6 +24,12 @@ tear_down() {
 }
 scan_has() { timeout 60 iw dev $IFN scan 2> /tmp/scan.err | grep -q "SSID: $1"; }
 
+# Any frame the host sends reaches sprdwl_handle_pop_list(), which hits a
+# KASAN use-after-free and then oopses with this transport (docs/TESTING.md,
+# "Findings"). Keep the stack quiet: no IPv6 (no MLD/RS), no addresses.
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+
 kml_reset
 phase sim-probe
 check "sim: bsp (external) + sim + wifi load and wlan0 appears" bring_up
@@ -123,3 +129,22 @@ ok "surprise removal: wlan0 survived link down without the transport"
 tear_down
 check "surprise removal: remaining modules unload" no_driver_modules
 kml_check "kmemleak: nothing leaked by the fault tests" sim-faults
+
+# --- TX data completion (off by default: crashes today) ----------------------------------
+# uwe.tx_data=1 on the kernel command line sends one frame through the data
+# channel and checks that its completion is clean. Today the first completed
+# data frame is a KASAN slab-use-after-free in sprdwl_handle_pop_list()
+# followed by an oops, so this runs only on request.
+if [ "$(cmdline_get uwe.tx_data)" = 1 ]; then
+	phase sim-txdata
+	bring_up
+	echo 0 > /proc/sys/net/ipv6/conf/wlan0/disable_ipv6 2> /dev/null
+	ip link set $IFN up
+	timeout 60 iw dev $IFN connect uwe-sim-open > /dev/null 2>&1
+	sleep 2
+	ip addr add 10.99.0.2/24 dev $IFN
+	ping -c 1 -W 2 10.99.0.1 > /dev/null 2>&1
+	sleep 2
+	[ "$(stat tx_frames)" -ge 1 ] && ok "sim: a TX data frame reached the simulated chip" || nok "sim: a TX data frame reached the simulated chip"
+	tear_down
+fi

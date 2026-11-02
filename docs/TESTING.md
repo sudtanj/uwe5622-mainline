@@ -115,3 +115,21 @@ cat /tmp/out/qemu.tap
 `tests` is a comma-separated list of `tests/qemu/guest/*.sh` scripts
 (`lifecycle`, `kunit`, `sim`, `metrics`). Static: `tests/static/run.sh clang
 6.18.60 $W`. Device tree: `tests/dt/check-overlay.sh 6.18.60 $W`.
+
+## Findings from the simulated chip
+
+- **TX data completion crashes.** The first data frame the host sends
+  (with IPv6 on, the MLD report when `wlan0` comes up) is handed back by the
+  transport with `pop_link()` as the contract requires, and
+  `sprdwl_handle_pop_list()` (`unisocwifi/wl_intf.c`) then reports a KASAN
+  slab-use-after-free reading `mbuf->buf - 8` of the skb it is completing, at
+  the head/tail lookup at its start, followed by an oops. The sim test keeps IPv6
+  off and sends no frames; `uwe.tx_data=1` on the kernel command line enables
+  a test that does. Not yet determined whether the driver frees the skb on
+  another path first or the sim breaks an unwritten rule of the SDIO transport.
+- **Seam.** The core registers its channels while it probes; an external
+  transport that registers afterwards used to miss them. Fixed by 39f12dc
+  (replay in `wcn_bus_register_transport()`).
+- No test of the data path (RX, ping, throughput per Mbit) exists until the
+  above is understood and the sim grows an RX path with the driver's RX
+  descriptor layout.
