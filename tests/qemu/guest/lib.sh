@@ -55,7 +55,7 @@ load() {
 	return $r
 }
 unload_all() {
-	for m in uwe5622_sim sprdbt_tty sprdwl_ng uwe5622_bsp_sdio; do
+	for m in sprdbt_tty sprdwl_ng uwe5622_sim uwe5622_bsp_sdio; do
 		mod_loaded "$m" && rmmod "$m"
 	done
 	return 0

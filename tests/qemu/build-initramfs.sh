@@ -34,6 +34,14 @@ for b in iw rfkill wpa_supplicant wpa_cli; do copy_dyn "$b"; done
 ld=$(ls /lib/ld-linux-aarch64.so.1 2>/dev/null || true)
 [[ -n $ld ]] && cp -L --parents "$ld" "$R/"
 
+# Stand-ins for the firmware and RF config the driver reads. The simulated
+# chip ignores the image; its first bytes must be non-zero (no function mask).
+mkdir -p "$R/lib/firmware/uwe5622"
+head -c 8192 /dev/zero | tr "\\0" "Z" > "$R/lib/firmware/uwe5622/wcnmodem.bin"
+for ant in 0 1 2; do
+	printf "Major = 1\nMinor = 0\nTxChain_Mask = 1\nRxChain_Mask = 1\n" > "$R/lib/firmware/wifi_2355b001_${ant}ant.ini"
+done
+
 cp "$MODS"/*.ko "$R/lib/modules/uwe/"
 cp "$HERE"/guest/*.sh "$R/tests/"
 cp "$HERE/guest/init" "$R/init"

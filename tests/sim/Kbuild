@@ -1,0 +1,10 @@
+# Simulated UWE5622 chip: uwe5622_sim.ko, built by tests/qemu/build-kernel.sh
+# (M=tests/sim, UWE_SRC=<repo>) against the same kernel as the driver.
+UWE_SRC ?= $(src)/../..
+obj-m := uwe5622_sim.o
+ccflags-y += -I$(UWE_SRC)/unisocwcn/include -I$(UWE_SRC)/unisocwifi \
+	-I$(UWE_SRC)/unisocwcn/platform -I$(UWE_SRC)/tty-sdio \
+	-DIBSS_SUPPORT -DIBSS_RSN_SUPPORT -DNAN_SUPPORT -DRTT_SUPPORT \
+	-DACS_SUPPORT -DRX_HW_CSUM -DWMMAC_WFA_CERTIFICATION -DCOMPAT_SAMPILE_CODE \
+	-DRND_MAC_SUPPORT -DATCMD_ASSERT -DTCPACK_DELAY_SUPPORT -DSPLIT_STACK \
+	-DOTT_UWE -DCP2_RESET_SUPPORT -DCONFIG_UWE5622 -DCONFIG_WCN_SDIO -D__linux__
