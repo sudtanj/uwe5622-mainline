@@ -477,6 +477,23 @@ static void sprdwl_sdio_flush_txlist(struct sprdwl_msg_list *list)
 		usleep_range(2950, 3050);
 		cnt++;
 	}
+	/*
+	 * Commands the transport never handed back (no chip answered, or the
+	 * link is gone) are still on cmd_to_free; nobody will pop them now.
+	 * Free the command buffer and the message, or both leak.
+	 */
+	spin_lock_bh(&list->complock);
+	while (!list_empty(&list->cmd_to_free)) {
+		msgbuf = list_first_entry(&list->cmd_to_free,
+					  struct sprdwl_msg_buf, list);
+		list_del(&msgbuf->list);
+		spin_unlock_bh(&list->complock);
+		kfree(msgbuf->tran_data);
+		msgbuf->tran_data = NULL;
+		sprdwl_free_msg_buf(msgbuf, list);
+		spin_lock_bh(&list->complock);
+	}
+	spin_unlock_bh(&list->complock);
 	while ((msgbuf = sprdwl_peek_msg_buf(list))) {
 		if (msgbuf->skb)
 			dev_kfree_skb(msgbuf->skb);
@@ -1479,8 +1496,10 @@ int sprdwl_tx_init(struct sprdwl_intf *intf)
 
 	for (i = 0; i < SPRDWL_MODE_MAX; i++) {
 		tx_msg->tx_list[i] = kzalloc(sizeof(struct tx_t), GFP_KERNEL);
-		if (!tx_msg->tx_list[i])
+		if (!tx_msg->tx_list[i]) {
+			ret = -ENOMEM;
 			goto err_txlist;
+		}
 		qos_init(tx_msg->tx_list[i]);
 	}
 	sprdwl_init_xmit_list(tx_msg);
@@ -1488,9 +1507,10 @@ int sprdwl_tx_init(struct sprdwl_intf *intf)
 	tx_msg->tx_thread =
 		kthread_create(sprdwl_tx_work_queue,
 			       (void *)tx_msg, "SPRDWL_TX_QUEUE");
-	if (!tx_msg->tx_thread) {
+	if (IS_ERR(tx_msg->tx_thread)) {
 		wl_err("%s SPRDWL_TX_QUEUE create failed", __func__);
-		ret = -ENOMEM;
+		ret = PTR_ERR(tx_msg->tx_thread);
+		tx_msg->tx_thread = NULL;
 		goto err_txlist;
 	}
 

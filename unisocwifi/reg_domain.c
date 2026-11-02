@@ -76,7 +76,7 @@ static const struct ieee80211_regdomain regdom_cz_nl = {
 	/* channels 1..11 */
 	SPRD_REG_RULE(2412-10, 2462+10, 40, 0),
 	/* channels 12,13 */
-	SPRD_REG_RULE(2467-10, 2472+10, 40, 0),
+	SPRD_REG_RULE(2467-10, 2472+10, 40, NL80211_RRF_AUTO_BW),
 	/* channels 36..48 */
 	SPRD_REG_RULE(5180-10, 5240+10, 80, 0),
 	/* channels 52..64 */

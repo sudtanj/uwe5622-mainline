@@ -567,8 +567,8 @@ int sprdwl_cmd_send_recv(struct sprdwl_priv *priv,
 
 	ret = sprdwl_api_available_check(priv, msg);
 	if (ret || sprdwl_cmd_lock(cmd)) {
-		sprdwl_intf_free_msg_buf(priv, msg);
 		kfree(msg->tran_data);
+		sprdwl_intf_free_msg_buf(priv, msg);
 		if (rlen)
 			*rlen = 0;
 		if (ret)
@@ -654,8 +654,8 @@ static int sprdwl_cmd_send_recv_no_wait(struct sprdwl_priv *priv,
 
 	if (sprdwl_cmd_lock(cmd)) {
 		wl_err("%s, %d, error!\n", __func__, __LINE__);
-		sprdwl_intf_free_msg_buf(priv, msg);
 		kfree(msg->tran_data);
+		sprdwl_intf_free_msg_buf(priv, msg);
 		goto out;
 	}
 
