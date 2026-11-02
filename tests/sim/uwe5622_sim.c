@@ -287,6 +287,12 @@ static void sim_handle_cmd(const struct sprdwl_cmd_hdr *c, unsigned int avail)
 		kfree(fi);
 		break;
 	}
+	case WIFI_CMD_SYNC_VERSION:
+		/* the firmware speaks exactly the API versions the driver offers */
+		sim_send_rsp(c, c->paydata,
+			     min_t(unsigned int, avail - sizeof(*c),
+				   sizeof(struct sprdwl_cmd_api_t)));
+		break;
 	case WIFI_CMD_SCAN:
 		sim_send_rsp(c, NULL, 0);
 		sim_do_scan(c->common.ctx_id);
