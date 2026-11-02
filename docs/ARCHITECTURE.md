@@ -316,6 +316,70 @@ on channel 10 needs credits: the firmware grants them with event
 credit counts (`sprdwl_sdio_process_credit()`, `tx_msg.c`), or in the
 `rsvd5` byte of RX data-special descriptors.
 
+## Optimizations
+
+Changes made for memory and CPU cost on the Orange Pi Zero 3 (1-4 GB RAM,
+4 x A53, SDIO 2.0 link). None was measured on a board: the numbers below are
+computed from the sources, and "Needs a board" says what to check.
+
+| Item | Before | After | Why |
+|---|---|---|---|
+| Wi-Fi TX message pool (`SPRDWL_TX_QOS_POOL_SIZE`, `wl_core.h`) | 20000 `struct sprdwl_msg_buf` allocated at load | 4096 | The SDIO data channel has 800 buffers (`sdiohal_ctl.c`); the pool also grows on demand past 80% (`tx_msg.c`). About 2 MB less RAM and 16000 fewer `kzalloc()` calls at `modprobe`. |
+| Wi-Fi RX message lists (`SPRDWL_RX_MSG_NUM`, two lists) | 2 x 20000 | 2 x 2048 | One entry is a chain of SDIO buffers handed over by the RX thread, not a packet. About 4 MB less RAM. |
+| Wi-Fi TX thread priority (`tx_msg.c`) | `set_user_nice(-20)` | `-5` | -20 is the highest CFS weight and competes with the SDIO threads; the bus is the bottleneck, not CPU. |
+| `sdiohal` TX/RX threads | `sched_set_fifo_low()` | unchanged | They sleep on semaphores, so they do not spin; FIFO keeps bus latency low. |
+| Busy waits in process context (`wcn_boot.c`, `wcn_dump.c`) | `mdelay(1)`, `udelay(200/300)` | `usleep_range()` | All run under a mutex next to sleeping SDIO register accesses; they spun a core for 1 ms to 600 us per call. `slp_sdio.c` keeps `udelay(65)`: it may run in atomic context. |
+| Firmware liveness check (`loopcheck.c`) | AT command every 5 s | every 15 s, `round_jiffies_relative()` | Fewer SDIO wake-ups while idle. A dead firmware is still reported through the assert channel; the check only bounds detection of a silent hang to 15 s + 3 s. |
+| `at_cmd_send()` | leaked its buffer when the bus list could not be allocated or pushed | frees it | Found while reading the loopcheck path. |
+
+Looked at and left alone:
+
+- Firmware load: on this build `is_btwf_in_sysfs` is forced to 1, so the
+  firmware is read once with `kernel_read()` into a vmalloc buffer of
+  `FIRMWARE_MAX_SIZE` (0xe7400) and, only when the image is larger than that,
+  once more at the real size. The extra `vmalloc()` + `memcpy()` backup in
+  `marlin_request_firmware()` belongs to the `request_firmware()` branch,
+  which never runs here.
+- Wi-Fi power save: the vendor clears `WIPHY_FLAG_PS_ON_BY_DEFAULT`
+  (`cfg80211.c`), so power save is off until user space enables it with
+  `iw dev wlan0 set power_save on`. Turning it on by default would save power
+  but changes latency and association behaviour of the firmware; it is not
+  changed without a board test. `disable_powersave` is a module parameter.
+
+Needs a board: Wi-Fi throughput (iperf3 both ways) and `free -m` before and
+after for the pool sizes; TX queue drops (`tx timeout drop` in dmesg) under
+load; idle wake-ups and current with the 15 s loopcheck; `rmmod`/`modprobe`
+loop.
+
+## Bluetooth design note: HCI over serdev
+
+Today `sprdbt_tty.ko` registers `ttyBT0`; user space must run `hciattach`
+(H4, 115200 nominal, unused baud rate) to turn it into an `hciN`. All the
+"serial" parameters are fiction: the data goes to SDIO channel 3/17.
+
+The in-kernel way is `drivers/bluetooth/hci_uart` or, better, a driver that
+registers a `struct hci_dev` directly (as `btusb`, `btmtksdio` do):
+
+- `hci_dev->open/close` call `start_marlin(MARLIN_BLUETOOTH)` /
+  `stop_marlin()`, replacing the rfkill hook in `rfkill.c`.
+- `hci_dev->send(skb)` prepends the 4-byte bus header and pushes on channel 3
+  (what `marlin_sdio_write()` does); the RX callback on channel 17 passes the
+  packet to `hci_recv_frame()` after reading the H4 packet type byte, which
+  is already the first byte of the payload.
+- The firmware needs vendor commands before use (`woble.c`, sleep mode, MAC);
+  they go in `hdev->setup`.
+
+serdev is not applicable: it describes a UART child device in the device tree,
+and this chip has no UART to the host. A `serdev` controller shim would only
+rebuild the TTY layer in kernel. So the recommendation is a direct `hci_dev`
+driver, about 300 lines replacing `tty.c`, `rfkill.c`, most of `lpm.c`.
+
+Not done in this phase: it changes the user-visible interface (no `ttyBT0`,
+no `hciattach` service), needs the Armbian image's BT service changed with it,
+and must be tested with a real controller. Steps: (1) add the `hci_dev`
+driver behind a module parameter next to the TTY one, (2) switch the image's
+service to bluetoothd only, (3) remove the TTY path after a release.
+
 ## Goals of the rewrite
 
 In priority order:
@@ -515,20 +579,11 @@ listed in `.github/known-warnings.txt` fails CI. Every fix was
 behaviour-neutral: `static`, prototypes, `const`, endianness and address-space
 annotations, `NULL` for pointers, unused variables.
 
-Known issues for Phase 2 (the five accepted warnings; each needs a logic
-change):
+The five warnings that were accepted at first (unchecked `kstrtol()`, the
+big-endian `h_proto` comparison, two arrays of flexible structs) were fixed
+in Phase 2, and `.github/known-warnings.txt` is now empty.
 
-- `unisocwcn/platform/wcn_procfs.c`: the result of `kstrtol()` is never
-  checked, so a malformed procfs write is silently accepted.
-- `unisocwifi/txrx.c`: `eth->h_proto` (network order) is compared with
-  host-order `ETH_P_IP`/`ETH_P_IPV6`, so the test is always true on
-  little-endian. Fixing it changes which broadcast frames are looped back in
-  AP mode.
-- `unisocwifi/rx_msg.h`, `unisocwifi/vendor.h`: firmware structs holding an
-  array of structs that end in a flexible array; the accessors need
-  rewriting.
-
-### Phase 2 — restructure
+### Phase 2 — restructure (done except as noted)
 
 - One `struct device`-centred driver model: SDIO function probe → power →
   firmware → channels → Wi-Fi/BT children, with symmetric remove
