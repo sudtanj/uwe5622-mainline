@@ -724,13 +724,44 @@ static int sprdwl_add_cipher_key(struct sprdwl_vif *vif, bool pairwise,
 	return ret;
 }
 
+/*
+ * Linux 7.4 passes an enum nl80211_key_type to add_key/del_key instead of
+ * "bool pairwise". The firmware only knows group and pairwise keys.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 4, 0)
+typedef enum nl80211_key_type sprdwl_key_type_t;
+
+static inline int sprdwl_key_pairwise(enum nl80211_key_type type)
+{
+	switch (type) {
+	case NL80211_KEYTYPE_GROUP:
+		return 0;
+	case NL80211_KEYTYPE_PAIRWISE:
+		return 1;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+#else
+typedef bool sprdwl_key_type_t;
+
+static inline int sprdwl_key_pairwise(bool pairwise)
+{
+	return pairwise;
+}
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 static int sprdwl_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-				   int link_id, u8 key_index, bool pairwise,
+				   int link_id, u8 key_index, sprdwl_key_type_t type,
 				   const u8 *mac_addr,
 				   struct key_params *params)
 {
 	struct sprdwl_vif *vif = netdev_priv(wdev->netdev);
+	int pairwise = sprdwl_key_pairwise(type);
+
+	if (pairwise < 0)
+		return pairwise;
 
 	if (key_index >= SPRDWL_NUM_KEY_SLOTS ||
 	    params->key_len > WLAN_MAX_KEY_LEN)
@@ -836,11 +867,15 @@ static int sprdwl_del_cipher_key(struct sprdwl_vif *vif, u8 key_index,
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 static int sprdwl_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
-				   int link_id, u8 key_index, bool pairwise,
+				   int link_id, u8 key_index, sprdwl_key_type_t type,
 				   const u8 *mac_addr)
 {
-	return sprdwl_del_cipher_key(netdev_priv(wdev->netdev), key_index, pairwise,
-				     mac_addr);
+	int pairwise = sprdwl_key_pairwise(type);
+
+	if (pairwise < 0)
+		return pairwise;
+	return sprdwl_del_cipher_key(netdev_priv(wdev->netdev), key_index,
+				     pairwise, mac_addr);
 }
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 static int sprdwl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
