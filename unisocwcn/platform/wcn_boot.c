@@ -2620,6 +2620,12 @@ static int marlin_bus_attach(struct sprdwcn_bus_ops *ops)
 		return ret;
 	sprdwcn_bus_register_rescan_cb(marlin_scan_finish);
 	ret = sprdwcn_bus_preinit();
+	if (!ret) {
+		/* channels the core registered before a transport existed */
+		ret = wcn_bus_chn_replay(ops);
+		if (ret)
+			sprdwcn_bus_deinit();
+	}
 	if (ret)
 		module_ops_unregister();
 
@@ -2661,6 +2667,7 @@ void wcn_bus_unregister_transport(struct sprdwcn_bus_ops *ops)
 	if (marlin_dev && marlin_dev->power_state)
 		pr_warn("transport removed while power_state=0x%lx\n",
 			marlin_dev->power_state);
+	wcn_bus_chn_release(ops);
 	sprdwcn_bus_deinit();
 	module_ops_unregister();
 }

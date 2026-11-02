@@ -312,3 +312,84 @@ struct sprdwcn_bus_ops *get_wcn_bus_ops(void)
 }
 EXPORT_SYMBOL(get_wcn_bus_ops);
 
+
+/*
+ * Channels the core registers while no transport is set.
+ *
+ * The core registers its AT, loopcheck and assert channels at probe. With
+ * transport=external the transport arrives later, so those calls would
+ * be lost. Keep them here, replay them when a transport is attached and
+ * release them when it is detached; the core's own deinit removes them.
+ */
+static struct mchn_ops_t *deferred_chn[CHN_MAX_NUM];
+static DEFINE_MUTEX(deferred_chn_lock);
+
+int wcn_bus_chn_defer(struct mchn_ops_t *ops)
+{
+	int ret = 0;
+
+	if (!ops || ops->channel < 0 || ops->channel >= CHN_MAX_NUM)
+		return -EINVAL;
+
+	mutex_lock(&deferred_chn_lock);
+	if (deferred_chn[ops->channel])
+		ret = -EBUSY;
+	else
+		deferred_chn[ops->channel] = ops;
+	mutex_unlock(&deferred_chn_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(wcn_bus_chn_defer);
+
+void wcn_bus_chn_forget(struct mchn_ops_t *ops)
+{
+	if (!ops || ops->channel < 0 || ops->channel >= CHN_MAX_NUM)
+		return;
+
+	mutex_lock(&deferred_chn_lock);
+	if (deferred_chn[ops->channel] == ops)
+		deferred_chn[ops->channel] = NULL;
+	mutex_unlock(&deferred_chn_lock);
+}
+EXPORT_SYMBOL(wcn_bus_chn_forget);
+
+int wcn_bus_chn_replay(struct sprdwcn_bus_ops *ops)
+{
+	int i, j, ret = 0;
+
+	if (!ops || !ops->chn_init)
+		return 0;
+
+	mutex_lock(&deferred_chn_lock);
+	for (i = 0; i < CHN_MAX_NUM; i++) {
+		if (!deferred_chn[i])
+			continue;
+		ret = ops->chn_init(deferred_chn[i]);
+		if (ret)
+			break;
+	}
+	if (ret && ops->chn_deinit)
+		for (j = 0; j < i; j++)
+			if (deferred_chn[j])
+				ops->chn_deinit(deferred_chn[j]);
+	mutex_unlock(&deferred_chn_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(wcn_bus_chn_replay);
+
+void wcn_bus_chn_release(struct sprdwcn_bus_ops *ops)
+{
+	int i;
+
+	if (!ops || !ops->chn_deinit)
+		return;
+
+	mutex_lock(&deferred_chn_lock);
+	for (i = 0; i < CHN_MAX_NUM; i++)
+		if (deferred_chn[i])
+			ops->chn_deinit(deferred_chn[i]);
+	mutex_unlock(&deferred_chn_lock);
+}
+EXPORT_SYMBOL(wcn_bus_chn_release);

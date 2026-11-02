@@ -170,6 +170,14 @@ does not include `sdio/sdiohal.h` either.
   (calls `ops->deinit()`). Both are `EXPORT_SYMBOL_GPL`. Register before
   loading `sprdwl_ng`/`sprdbt_tty`; unregister only after they are
   unloaded (the pointer is read without a lock).
+- Channels registered before a transport exists: the core registers its AT,
+  loopcheck and assert channels at probe. `sprdwcn_bus_chn_init()` with no
+  transport records the `struct mchn_ops_t` (`wcn_bus_chn_defer()`);
+  `marlin_bus_attach()` replays them with `ops->chn_init()` after `preinit`,
+  and `wcn_bus_unregister_transport()` calls `ops->chn_deinit()` for them
+  before `deinit`, keeping them recorded for the next transport. A channel's
+  own `sprdwcn_bus_chn_deinit()` removes it from the record. With the SDIO
+  transport the record is always empty (it attaches first), so nothing changes.
 - Helpers exported for a transport (declared in `wcn_bus.h`, in
   `unisocwcn/wcn_bus.c`): `bus_chn_init(ops, hif_type)` /
   `bus_chn_deinit(ops)` (record the channel's `struct mchn_ops_t` and, if

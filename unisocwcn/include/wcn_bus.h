@@ -214,6 +214,12 @@ int buf_list_free(int chn, struct mbuf_t *head,
 		  struct mbuf_t *tail, int num);
 struct mchn_ops_t *chn_ops(int channel);
 
+/* channels registered while no transport is set; see wcn_bus.c */
+int wcn_bus_chn_defer(struct mchn_ops_t *ops);
+void wcn_bus_chn_forget(struct mchn_ops_t *ops);
+int wcn_bus_chn_replay(struct sprdwcn_bus_ops *ops);
+void wcn_bus_chn_release(struct sprdwcn_bus_ops *ops);
+
 static inline
 int sprdwcn_bus_get_hif_type(void)
 {
@@ -252,7 +258,9 @@ int sprdwcn_bus_chn_init(struct mchn_ops_t *ops)
 {
 	struct sprdwcn_bus_ops *bus_ops = get_wcn_bus_ops();
 
-	if (!bus_ops || !bus_ops->chn_init)
+	if (!bus_ops)
+		return wcn_bus_chn_defer(ops);
+	if (!bus_ops->chn_init)
 		return 0;
 
 	return bus_ops->chn_init(ops);
@@ -262,6 +270,8 @@ static inline
 int sprdwcn_bus_chn_deinit(struct mchn_ops_t *ops)
 {
 	struct sprdwcn_bus_ops *bus_ops = get_wcn_bus_ops();
+
+	wcn_bus_chn_forget(ops);
 
 	if (!bus_ops || !bus_ops->chn_deinit)
 		return 0;
