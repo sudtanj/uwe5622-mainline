@@ -3485,8 +3485,21 @@ static int marlin_probe(struct platform_device *pdev)
 	slp_mgr_init();
 #endif
 	/* register the transport and bring it up (sdiohal_init) */
-	if (marlin_use_sdio())
-		marlin_bus_attach(wcn_sdio_bus_ops());
+	if (marlin_use_sdio()) {
+		int ret = marlin_bus_attach(wcn_sdio_bus_ops());
+
+		if (ret) {
+			pr_err("%s: transport attach failed: %d\n", __func__,
+			       ret);
+#ifdef CONFIG_WCN_SLP
+			slp_mgr_deinit();
+#endif
+			marlin_gpio_free(pdev);
+			mutex_destroy(&marlin_dev->power_lock);
+			marlin_dev = NULL;
+			return ret;
+		}
+	}
 #ifdef CONFIG_WCN_SDIO
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (marlin_dev->int_ap)
@@ -3560,8 +3573,14 @@ static int marlin_remove(struct platform_device *pdev)
 		pmic_bound_xtl_assert(0);
 		marlin_chip_en(false, false);
 	}
-	if (marlin_use_sdio())
+	if (marlin_use_sdio()) {
 		module_ops_unregister();
+	} else if (get_wcn_bus_ops()) {
+		/* an external transport that was not unregistered first */
+		pr_warn("%s: external transport still registered\n", __func__);
+		sprdwcn_bus_deinit();
+		module_ops_unregister();
+	}
 #ifdef CONFIG_WCN_SLP
 	slp_mgr_deinit();
 #endif
@@ -3570,6 +3589,7 @@ static int marlin_remove(struct platform_device *pdev)
 	vfree(marlin_dev->firmware.data);
 	devm_kfree(&pdev->dev, marlin_dev->write_buffer);
 	devm_kfree(&pdev->dev, marlin_dev);
+	marlin_dev = NULL;
 
 	pr_info("%s ok!\n", __func__);
 
