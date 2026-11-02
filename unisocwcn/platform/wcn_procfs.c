@@ -621,7 +621,7 @@ static ssize_t mdbg_proc_write(struct file *filp,
 		stop_marlin(MARLIN_WIFI);
 
 #endif
-	if (count > MDBG_WRITE_SIZE) {
+	if (count >= MDBG_WRITE_SIZE) {
 		pr_err("%s count > MDBG_WRITE_SIZE\n", __func__);
 		return -ENOMEM;
 	}
@@ -661,6 +661,8 @@ static ssize_t mdbg_proc_write(struct file *filp,
 
 		ret = kstrtol(&mdbg_proc->write_buf[strlen("loglimitsize=")],
 			10, &log_limit_size);
+		if (ret)
+			return ret;
 		if (wcn_set_log_file_limit_size(log_limit_size))
 			return -EIO;
 
@@ -673,6 +675,8 @@ static ssize_t mdbg_proc_write(struct file *filp,
 
 		ret = kstrtol(&mdbg_proc->write_buf[strlen("logmaxnum=")],
 			10, &log_file_max_num);
+		if (ret)
+			return ret;
 		if (wcn_set_log_file_max_num(log_file_max_num))
 			return -EIO;
 
@@ -685,6 +689,8 @@ static ssize_t mdbg_proc_write(struct file *filp,
 
 		ret = kstrtol(&mdbg_proc->write_buf[strlen("logcoverold=")],
 			10, &cover_old_flag);
+		if (ret)
+			return ret;
 		if (wcn_set_log_file_cover_old(cover_old_flag))
 			return -EIO;
 

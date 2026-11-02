@@ -8,10 +8,6 @@
 # the checkout directory stripped. Line/column numbers are wildcarded so
 # unrelated edits do not invalidate an entry.
 
-# kstrtol() is __must_check and its result is never looked at; checking it
-# changes what a malformed procfs write does.
-^unisocwcn/platform/wcn_procfs.c:[0-9]+:[0-9]+: warning: variable .ret. set but not used \[-Wunused-but-set-variable\]$
-
 # eth->h_proto (network order) is compared with host-order ETH_P_IP /
 # ETH_P_IPV6, so the test is always true on little-endian; the fix changes
 # which broadcast frames are looped back in AP mode.
