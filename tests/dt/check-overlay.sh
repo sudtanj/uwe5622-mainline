@@ -110,8 +110,8 @@ eq "vcc-wifi-io fed from vcc33-wifi" "$(phandle_of "$VCC33")" "$(get -t u "$M" "
 # Nothing else in the base tree may change. drop_nodes deletes whole node
 # blocks (header to the "};" at the same indent) by name, so mmc1 and the new
 # root nodes go including any subnodes; then the new labels in __symbols__
-# are dropped. Block removal must run first: filtering lines by name would
-# delete the headers and leave the bodies behind.
+# and blank lines are dropped. Block removal must run first: filtering lines
+# by name would delete the headers and leave the bodies behind.
 drop_nodes() { # drop_nodes <ERE matching node names>
 	awk -v re="$1" '
 		skip { if ($0 == ind "};") skip = 0; next }
@@ -123,7 +123,7 @@ drop_nodes() { # drop_nodes <ERE matching node names>
 cmp_tree() {
 	dtc -q -I dtb -O dts -s "$1" |
 		drop_nodes 'mmc@4021000|vcc33-wifi|vcc-wifi-io|wifi-pwrseq' |
-		grep -vE '^\t*(reg_vcc33_wifi|reg_vcc_wifi_io|wifi_pwrseq) = '
+		grep -vE '^[[:space:]]*((reg_vcc33_wifi|reg_vcc_wifi_io|wifi_pwrseq) = |$)'
 }
 cmp_tree "$OUT/base.dtb" > "$OUT/base.cmp"
 cmp_tree "$M" > "$OUT/merged.cmp"
