@@ -197,7 +197,7 @@ does not include `sdio/sdiohal.h` either.
 | `chn_init(ops)` / `chn_deinit(ops)` | Wi-Fi `sprdwl_intf_init()`, BT `mtty` init (`tty.c`), core `wcn_txrx.c`, `wcn_procfs.c` | register a channel (see table below) |
 | `list_alloc` / `list_free` | TX users | take/return mbufs from the channel's pool |
 | `push_list(chn, head, tail, num)` | everyone | TX channel (< 12): send the list, then give it back with `chn_ops(chn)->pop_link(chn, head, tail, num)`; RX channel (>= 12): the owner returns an RX list it was given, the transport frees it |
-| `push_list_direct` | Wi-Fi data TX (`wl_intf.c`) | as `push_list`, synchronous |
+| `push_list_direct` | Wi-Fi data TX (`wl_intf.c`, BT off) | send before returning and do NOT call `pop_link`; the caller returns the buffers (see "Who calls `pop_link`") |
 | `direct_read/write(addr, buf, len)` | firmware download, `check_cp_ready()`, dumps | chip memory access |
 | `read_l/write_l(addr, buf)` | boot handshake | 32-bit chip register access (`sprdwcn_bus_reg_read/write`) |
 | `readbyte/writebyte` | `sleep/`, SWD debug | SDIO AON byte registers; only reached on Zero 3 through the debug/sleep paths (`sdio_int` is inactive without an `int_ap` GPIO) |
@@ -210,6 +210,45 @@ does not include `sdio/sdiohal.h` either.
 transport calls it from process context (the SDIO transport calls it from
 its RX/TX threads with a per-channel mutex held), one call per channel at
 a time.
+### Who calls `pop_link`: `push_list` versus `push_list_direct`
+
+The two TX hooks differ in who returns the buffers, and getting this wrong
+is a use-after-free (found by the simulator: first IPv6 frame after
+`ip link set wlan0 up`, KASAN in `sprdwl_handle_pop_list()`).
+
+- `push_list(chn, head, tail, num)`: asynchronous. The transport owns the
+  list until it has sent it, then calls `chn_ops(chn)->pop_link(chn, head,
+  tail, num)` (from its TX thread, process context, per-channel callback
+  mutex held). The owner frees its buffers in `pop_link` and the mbufs go
+  back with `buf_list_free()` (`sprdwl_handle_pop_list()` does both).
+- `push_list_direct(chn, head, tail, num)`: synchronous. The transport sends
+  the list before returning (SDIO: `sdiohal_list_direct_write()` returns 0
+  even if the bus write failed) and **must not call `pop_link`**. Ownership
+  is back with the caller on return, and the caller returns the buffers
+  itself: `sprdwl_intf_tx_list()` queues `sprdwl_add_topop_list()` right
+  after a successful direct push, which frees the skbs and the mbufs on the
+  Wi-Fi work queue. If the transport also pops, the second pop reads skbs
+  that the first one freed.
+
+Wi-Fi data TX picks the hook with `coex_bt_on` (`wl_intf.c`): BT off uses
+`push_list_direct`, BT on uses `push_list`. So a transport (or simulator)
+must implement `push_list_direct` as "send, return 0, do not pop", and
+`push_list` as "send, then pop once".
+
+`pop_link` ordering for `push_list`: lists must be popped in the order they
+were pushed, and each pop must cover a run of whole messages that were pushed
+consecutively (SDIO may merge several pushed lists into one pop, never split
+a pushed list or reorder). `sprdwl_handle_pop_list()` cuts the run from the
+head message of the popped list to its tail out of the in-flight list with
+`list_cut_position()`, which only works for such runs. `mbuf->buf` and
+`mbuf->len` must be left as the sender set them: `buf` points just after the
+pointer the sender stored in the 8 bytes in front of it (`GET_MSG_BUF()`), and
+the pop reads that pointer to find its message.
+
+For command channels (`push_list` only) the owner frees `mbuf->buf` when
+`pop_link` is called; a command never popped stays on `cmd_to_free` until
+the Wi-Fi module is removed.
+
 
 ### Buffer layout
 
