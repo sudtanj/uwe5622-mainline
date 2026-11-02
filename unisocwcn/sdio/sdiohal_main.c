@@ -1981,6 +1981,30 @@ static struct sdio_driver sdiohal_driver = {
 	},
 };
 
+/*
+ * Whether sdiohal_driver is registered with the SDIO bus. On Allwinner the
+ * card is never removed (sdiohal_remove_card() returns early), so the
+ * driver stays registered after the first power-on.
+ */
+static bool sdiohal_drv_registered;
+
+static int sdiohal_drv_register(void)
+{
+	int ret = sdio_register_driver(&sdiohal_driver);
+
+	if (!ret)
+		sdiohal_drv_registered = true;
+	return ret;
+}
+
+static void sdiohal_drv_unregister(void)
+{
+	if (!sdiohal_drv_registered)
+		return;
+	sdio_unregister_driver(&sdiohal_driver);
+	sdiohal_drv_registered = false;
+}
+
 #define WCN_SDIO_CARD_REMOVED	BIT(4)
 void sdiohal_remove_card(void)
 {
@@ -2018,7 +2042,7 @@ void sdiohal_remove_card(void)
 	else
 		sdiohal_info("remove card end\n");
 
-	sdio_unregister_driver(&sdiohal_driver);
+	sdiohal_drv_unregister();
 	sdiohal_unlock_scan_ws();
 }
 
@@ -2087,22 +2111,43 @@ int sdiohal_scan_card(void)
 
 	sdiohal_lock_scan_ws();
 	sdiohal_resume_check();
+
+	if (sdiohal_drv_registered) {
+		/*
+		 * The card was not removed (Allwinner), so registering the
+		 * driver again would fail with -EBUSY and no probe would
+		 * signal the card. Power-cycle the chip through the MMC core
+		 * instead, so the firmware is loaded into a freshly reset
+		 * chip, and report the card. -EBUSY means the core chose to
+		 * re-detect the card; sdiohal_probe() then reports it.
+		 */
+		ret = sdiohal_hw_reset_card();
+		if (!ret && scan_card_notify)
+			scan_card_notify();
+		else if (ret == -EBUSY)
+			ret = 0;
+		sdiohal_unlock_scan_ws();
+		sdiohal_info("rescan of a present card: %d\n", ret);
+		return ret;
+	}
+
 	init_completion(&p_data->scan_done);
-	ret = sdio_register_driver(&sdiohal_driver);
+	ret = sdiohal_drv_register();
 	if (ret != 0) {
+		sdiohal_unlock_scan_ws();
 		sdiohal_err("sdio_register_driver error :%d\n", ret);
 		return ret;
 	}
 	if (wait_for_completion_timeout(&p_data->scan_done,
 		msecs_to_jiffies(2500)) == 0) {
 		sdiohal_unlock_scan_ws();
-		sdio_unregister_driver(&sdiohal_driver);
+		sdiohal_drv_unregister();
 		sdiohal_err("wait scan card time out\n");
 		return -ENODEV;
 	}
 	if (!p_data->sdio_dev_host) {
 		sdiohal_unlock_scan_ws();
-		sdio_unregister_driver(&sdiohal_driver);
+		sdiohal_drv_unregister();
 		sdiohal_err("sdio_dev_host is NULL!\n");
 		return -ENODEV;
 	}
@@ -2174,6 +2219,11 @@ void sdiohal_exit(void)
 		sdiohal_info("Already exist card!\n");
 		sdiohal_remove_card();
 	}
+	/*
+	 * sdiohal_remove_card() keeps the driver registered on Allwinner;
+	 * it must not outlive the module.
+	 */
+	sdiohal_drv_unregister();
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	/* GPIO managed automatically with devm_gpiod_get */
 #else
