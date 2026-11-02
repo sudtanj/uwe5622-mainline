@@ -404,6 +404,22 @@ static int sim_push_list(int chn, struct mbuf_t *head, struct mbuf_t *tail, int 
 	return 0;
 }
 
+/*
+ * push_list_direct(): the caller queues the pop itself (sprdwl_add_topop_list),
+ * so the transport sends, returns 0 and never calls pop_link().
+ */
+static int sim_push_list_direct(int chn, struct mbuf_t *head, struct mbuf_t *tail, int num)
+{
+	struct mbuf_t *m;
+	int i;
+
+	if (atomic_dec_if_positive(&sim.fail_next_push) >= 0)
+		return -EIO;
+	for (i = 0, m = head; i < num && m; i++, m = m->next)
+		sim_process_one(chn, m);
+	return 0;
+}
+
 /* ---- transport ops --------------------------------------------------------- */
 
 static int sim_read_l(unsigned int addr, void *buf)
@@ -513,7 +529,7 @@ static struct sprdwcn_bus_ops sim_ops = {
 	.list_alloc = buf_list_alloc,
 	.list_free = buf_list_free,
 	.push_list = sim_push_list,
-	.push_list_direct = sim_push_list,
+	.push_list_direct = sim_push_list_direct,
 	.get_blk_size = sim_blk_size,
 	.direct_read = sim_direct_read,
 	.direct_write = sim_direct_write,

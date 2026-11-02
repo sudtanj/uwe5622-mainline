@@ -118,18 +118,16 @@ cat /tmp/out/qemu.tap
 
 ## Findings from the simulated chip
 
-- **TX data completion crashes.** The first data frame the host sends
-  (with IPv6 on, the MLD report when `wlan0` comes up) is handed back by the
-  transport with `pop_link()` as the contract requires, and
-  `sprdwl_handle_pop_list()` (`unisocwifi/wl_intf.c`) then reports a KASAN
-  slab-use-after-free reading `mbuf->buf - 8` of the skb it is completing, at
-  the head/tail lookup at its start, followed by an oops. The sim test keeps IPv6
-  off and sends no frames; `uwe.tx_data=1` on the kernel command line enables
-  a test that does. Not yet determined whether the driver frees the skb on
-  another path first or the sim breaks an unwritten rule of the SDIO transport.
+- **Transport contract.** The first version of the sim called `pop_link()`
+  from `push_list_direct()` as well, which the driver does itself
+  (`sprdwl_add_topop_list`); the result was a KASAN use-after-free in
+  `sprdwl_handle_pop_list()`. The rules, now in `docs/ARCHITECTURE.md`:
+  `push_list_direct` sends, returns 0 and never calls `pop_link`; only
+  `push_list` calls it, once per list, in push order, leaving `mbuf->buf`
+  and `len` untouched. The sim follows them, and `sim-txdata` sends 20 pings
+  (plus the MLD frames IPv6 generates) to exercise TX completion.
 - **Seam.** The core registers its channels while it probes; an external
   transport that registers afterwards used to miss them. Fixed by 39f12dc
   (replay in `wcn_bus_register_transport()`).
-- No test of the data path (RX, ping, throughput per Mbit) exists until the
-  above is understood and the sim grows an RX path with the driver's RX
-  descriptor layout.
+- No test of the RX data path (ping replies, throughput per Mbit) exists
+  yet: the sim would need the driver's RX descriptor layout.
