@@ -300,13 +300,11 @@ int module_ops_register(struct sprdwcn_bus_ops *ops)
 
 	return 0;
 }
-EXPORT_SYMBOL(module_ops_register);
 
 void module_ops_unregister(void)
 {
 	wcn_bus_ops = NULL;
 }
-EXPORT_SYMBOL(module_ops_unregister);
 
 struct sprdwcn_bus_ops *get_wcn_bus_ops(void)
 {

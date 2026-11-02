@@ -15,7 +15,6 @@
 #include "slp_mgr.h"
 #include "slp_sdio.h"
 #include "wcn_glb.h"
-#include "../sdio/sdiohal.h"
 
 struct sdio_int_t sdio_int = {0};
 

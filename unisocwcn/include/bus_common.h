@@ -3,17 +3,12 @@
 
 #include <wcn_bus.h>
 
-int bus_chn_init(struct mchn_ops_t *ops, int hif_type);
-int bus_chn_deinit(struct mchn_ops_t *ops);
-int buf_list_alloc(int chn, struct mbuf_t **head,
-		   struct mbuf_t **tail, int *num);
-int buf_list_free(int chn, struct mbuf_t *head,
-		  struct mbuf_t *tail, int num);
+/* Internal to uwe5622_bsp_sdio: not exported. */
 int buf_list_is_full(int chn);
-struct mchn_ops_t *chn_ops(int channel);
+int buf_list_is_empty(int chn);
 int module_ops_register(struct sprdwcn_bus_ops *ops);
 void module_ops_unregister(void);
-/* -Wmissing-prototypes: cross-file declarations */
-int buf_list_is_empty(int chn);
+/* The built-in SDIO transport (sdio/sdio_v3.c). */
+struct sprdwcn_bus_ops *wcn_sdio_bus_ops(void);
 
 #endif

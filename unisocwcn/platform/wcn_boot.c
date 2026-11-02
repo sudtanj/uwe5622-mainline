@@ -39,6 +39,7 @@
 #include <linux/workqueue.h>
 #include <marlin_platform.h>
 #include <wcn_bus.h>
+#include "bus_common.h"
 #include <wcn_fs.h>
 
 #include "wcn_gnss.h"
@@ -2596,6 +2597,75 @@ static int marlin_scan_finish(void)
 	return 0;
 }
 
+static char *transport = "sdio";
+module_param(transport, charp, 0444);
+MODULE_PARM_DESC(transport,
+		 "sdio (default): use the SDIO chip; external: wait for another module to call wcn_bus_register_transport()");
+
+static bool marlin_use_sdio(void)
+{
+	return !transport || strcmp(transport, "external") != 0;
+}
+
+/*
+ * Make @ops the transport: register it, hand it the card-detect callback
+ * that chip_power_on() waits for, and run its preinit hook.
+ */
+static int marlin_bus_attach(struct sprdwcn_bus_ops *ops)
+{
+	int ret;
+
+	ret = module_ops_register(ops);
+	if (ret)
+		return ret;
+	sprdwcn_bus_register_rescan_cb(marlin_scan_finish);
+	ret = sprdwcn_bus_preinit();
+	if (ret)
+		module_ops_unregister();
+
+	return ret;
+}
+
+/**
+ * wcn_bus_register_transport() - install an alternative transport
+ * @ops: transport callbacks; must stay valid until unregistered
+ *
+ * Only allowed when uwe5622_bsp_sdio was loaded with transport=external,
+ * and before any subsystem is powered on.
+ *
+ * Return: 0, -ENODEV if the core has not probed, -EBUSY if the SDIO
+ * transport (or another one) is in use, or the error from @ops->preinit.
+ */
+int wcn_bus_register_transport(struct sprdwcn_bus_ops *ops)
+{
+	if (!marlin_dev)
+		return -ENODEV;
+	if (marlin_use_sdio())
+		return -EBUSY;
+
+	return marlin_bus_attach(ops);
+}
+EXPORT_SYMBOL_GPL(wcn_bus_register_transport);
+
+/**
+ * wcn_bus_unregister_transport() - remove a transport installed with
+ * wcn_bus_register_transport()
+ * @ops: the same pointer that was registered
+ *
+ * Calls @ops->deinit. All subsystems (Wi-Fi, BT) must be stopped first.
+ */
+void wcn_bus_unregister_transport(struct sprdwcn_bus_ops *ops)
+{
+	if (get_wcn_bus_ops() != ops)
+		return;
+	if (marlin_dev && marlin_dev->power_state)
+		pr_warn("transport removed while power_state=0x%lx\n",
+			marlin_dev->power_state);
+	sprdwcn_bus_deinit();
+	module_ops_unregister();
+}
+EXPORT_SYMBOL_GPL(wcn_bus_unregister_transport);
+
 static int find_firmware_path(void)
 {
 	int ret;
@@ -3414,11 +3484,9 @@ static int marlin_probe(struct platform_device *pdev)
 #ifdef CONFIG_WCN_SLP
 	slp_mgr_init();
 #endif
-	/* register ops */
-	wcn_bus_init();
-	sprdwcn_bus_register_rescan_cb(marlin_scan_finish);
-	/* sdiom_init or pcie_init */
-	sprdwcn_bus_preinit();
+	/* register the transport and bring it up (sdiohal_init) */
+	if (marlin_use_sdio())
+		marlin_bus_attach(wcn_sdio_bus_ops());
 #ifdef CONFIG_WCN_SDIO
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 1, 0)
 	if (marlin_dev->int_ap)
@@ -3484,14 +3552,16 @@ static int marlin_remove(struct platform_device *pdev)
 #ifdef CONFIG_MEM_PD
 	mem_pd_exit();
 #endif
-	sprdwcn_bus_deinit();
+	if (marlin_use_sdio())
+		sprdwcn_bus_deinit();
 	if ((marlin_dev->power_state != 0) && (!marlin_dev->no_power_off)) {
 		pr_info("marlin some subsys power is on, warning!\n");
 		wifipa_enable(0);
 		pmic_bound_xtl_assert(0);
 		marlin_chip_en(false, false);
 	}
-	wcn_bus_deinit();
+	if (marlin_use_sdio())
+		module_ops_unregister();
 #ifdef CONFIG_WCN_SLP
 	slp_mgr_deinit();
 #endif

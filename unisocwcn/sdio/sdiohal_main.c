@@ -718,7 +718,6 @@ void sdiohal_dump_aon_reg(void)
 
 	sdiohal_info("sdio dump_aon_reg end\n\n");
 }
-EXPORT_SYMBOL_GPL(sdiohal_dump_aon_reg);
 
 #if SDIO_DUMP_CHANNEL_DATA
 /* dump designated channel data when assert happened.

@@ -36,7 +36,6 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <wcn_bus.h>
-#include "../sdio/sdiohal.h"
 #include "slp_mgr.h"
 #include "slp_sdio.h"
 #include "wcn_glb.h"
@@ -111,7 +110,7 @@ try_timeout:
 				atomic_set(&(slp_mgr.cp2_state), STAY_AWAKING);
 				SLP_MGR_INFO("wakeup fail, slp_sts-0x%x",
 					     slp_sts);
-				sdiohal_dump_aon_reg();
+				sprdwcn_bus_dump_regs();
 				mutex_unlock(&(slp_mgr.wakeup_lock));
 				return -1;
 			}

@@ -184,16 +184,10 @@ static struct sprdwcn_bus_ops sdiohal_bus_ops = {
 	.driver_unregister = sdiohal_driver_unregister,
 	.allow_sleep = sdiohal_cp_allow_sleep,
 	.sleep_wakeup = sdiohal_cp_sleep_wakeup,
+	.dump_regs = sdiohal_dump_aon_reg,
 };
 
-void module_bus_init(void)
+struct sprdwcn_bus_ops *wcn_sdio_bus_ops(void)
 {
-	module_ops_register(&sdiohal_bus_ops);
+	return &sdiohal_bus_ops;
 }
-EXPORT_SYMBOL(module_bus_init);
-
-void module_bus_deinit(void)
-{
-	module_ops_unregister();
-}
-EXPORT_SYMBOL(module_bus_deinit);

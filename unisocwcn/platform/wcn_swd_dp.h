@@ -10,7 +10,9 @@
  * GNU General Public License for more details.
  */
 
-#include "./../sdio/sdiohal.h"
+#include <linux/delay.h>
+#include <linux/kernel.h>
+#include <wcn_bus.h>
 #include "../include/wcn_glb_reg.h"
 
 /* DAP Transfer Request */

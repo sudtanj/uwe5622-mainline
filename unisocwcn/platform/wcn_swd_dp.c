@@ -21,15 +21,15 @@ static void swd_ext_sel(bool enable)
 {
 	unsigned char reg;
 
-	sdiohal_aon_readb(DAP_ADDR+0x0E, &reg);
+	sprdwcn_bus_aon_readb(DAP_ADDR+0x0E, &reg);
 	pr_info("reg value is:0x%x\n", reg);
 
 	if (enable)
 		reg |= (BIT(7) | BIT(6) | BIT(5));
 	else
 		reg &= ~(BIT(7) | BIT(6) | BIT(5));
-	sdiohal_aon_writeb(DAP_ADDR+0x0E, reg);
-	sdiohal_aon_readb(DAP_ADDR+0x0E, &reg);
+	sprdwcn_bus_aon_writeb(DAP_ADDR+0x0E, reg);
+	sprdwcn_bus_aon_readb(DAP_ADDR+0x0E, &reg);
 	pr_info("reg value is:0x%x\n", reg);
 }
 
@@ -37,30 +37,30 @@ static void swclk_clr(void)
 {
 	unsigned char reg;
 
-	sdiohal_aon_readb(DAP_ADDR+0x0e, &reg);
+	sprdwcn_bus_aon_readb(DAP_ADDR+0x0e, &reg);
 	reg &= ~BIT(6);
-	sdiohal_aon_writeb(DAP_ADDR+0x0E, reg);
+	sprdwcn_bus_aon_writeb(DAP_ADDR+0x0E, reg);
 }
 
 static void swclk_set(void)
 {
 	unsigned char reg;
 
-	sdiohal_aon_readb(DAP_ADDR+0x0E, &reg);
+	sprdwcn_bus_aon_readb(DAP_ADDR+0x0E, &reg);
 	reg |= BIT(6);
-	sdiohal_aon_writeb(DAP_ADDR+0x0E, reg);
+	sprdwcn_bus_aon_writeb(DAP_ADDR+0x0E, reg);
 }
 
 static void sw_dio_out(u32 value)
 {
 	unsigned char reg;
 
-	sdiohal_aon_readb(DAP_ADDR+0x0E, &reg);
+	sprdwcn_bus_aon_readb(DAP_ADDR+0x0E, &reg);
 	if (value & BIT(0))
 		reg |= BIT(5);
 	else
 		reg &= ~BIT(5);
-	sdiohal_aon_writeb(DAP_ADDR+0x0E, reg);
+	sprdwcn_bus_aon_writeb(DAP_ADDR+0x0E, reg);
 }
 
 static u32 sw_dio_in(void)
@@ -68,7 +68,7 @@ static u32 sw_dio_in(void)
 	unsigned char reg;
 	u32 bit;
 
-	sdiohal_aon_readb(DAP_ACK_ADDR, &reg);
+	sprdwcn_bus_aon_readb(DAP_ACK_ADDR, &reg);
 	bit = (reg & BIT(7)) >> 7;
 
 	return bit;

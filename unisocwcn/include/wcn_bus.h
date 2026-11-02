@@ -184,11 +184,35 @@ struct sprdwcn_bus_ops {
 
 	/* for usb check cp status */
 	int (*check_cp_ready)(unsigned int addr, int timeout);
+
+	/* print transport/AON registers after a failed chip wake-up */
+	void (*dump_regs)(void);
 };
 
-extern void module_bus_init(void);
-extern void module_bus_deinit(void);
-extern struct sprdwcn_bus_ops *get_wcn_bus_ops(void);
+/*
+ * Transport registration. The WCN core registers its own SDIO transport
+ * at probe unless uwe5622_bsp_sdio is loaded with transport=external; then
+ * another module (a simulated chip for tests) registers one here. See
+ * "Transport interface" in docs/ARCHITECTURE.md.
+ */
+int wcn_bus_register_transport(struct sprdwcn_bus_ops *ops);
+void wcn_bus_unregister_transport(struct sprdwcn_bus_ops *ops);
+
+struct sprdwcn_bus_ops *get_wcn_bus_ops(void);
+
+/*
+ * Helpers a transport uses: TX mbuf pools for channels registered with
+ * pool_size > 0, channel registration bookkeeping and the per-channel
+ * callbacks (chn_ops(chn)->pop_link delivers RX lists and returns sent TX
+ * lists to their owner).
+ */
+int bus_chn_init(struct mchn_ops_t *ops, int hif_type);
+int bus_chn_deinit(struct mchn_ops_t *ops);
+int buf_list_alloc(int chn, struct mbuf_t **head,
+		   struct mbuf_t **tail, int *num);
+int buf_list_free(int chn, struct mbuf_t *head,
+		  struct mbuf_t *tail, int num);
+struct mchn_ops_t *chn_ops(int channel);
 
 static inline
 int sprdwcn_bus_get_hif_type(void)
@@ -609,16 +633,14 @@ int sprdwcn_check_cp_ready(unsigned int addr, int timeout)
 }
 
 static inline
-int wcn_bus_init(void)
+void sprdwcn_bus_dump_regs(void)
 {
-	module_bus_init();
-	return 0;
-}
+	struct sprdwcn_bus_ops *bus_ops = get_wcn_bus_ops();
 
-static inline
-void wcn_bus_deinit(void)
-{
-	module_bus_deinit();
+	if (!bus_ops || !bus_ops->dump_regs)
+		return;
+
+	bus_ops->dump_regs();
 }
 
 #endif
