@@ -47,6 +47,17 @@ check "sim: ip link set wlan0 up" ip link set $IFN up
 check "sim: wlan0 up (operstate/flags)" sh -c "ip link show $IFN | grep -q UP"
 
 phase sim-scan
+# diagnostics for the first scan: driver debug log, where iw is blocked
+echo 4 > /sys/module/$WIFI/parameters/debug_level
+timeout 25 iw dev $IFN scan > /tmp/scan.out 2>&1 &
+sleep 8
+for p in $(pidof iw); do
+	diag "iw $p wchan: $(cat /proc/$p/wchan 2>&1) stack: $(cat /proc/$p/stack 2>&1 | tr '\n' ';')"
+done
+wait
+echo 1 > /sys/module/$WIFI/parameters/debug_level
+diag "first scan output: $(head -c 600 /tmp/scan.out | tr '\n' '|')"
+dmesg | tail -n 150 > "$ATT/scan-debug.txt"
 check "sim: scan sees uwe-sim-open" scan_has uwe-sim-open
 check "sim: scan sees uwe-sim-two" sh -c 'timeout 25 iw dev wlan0 scan | grep -q "SSID: uwe-sim-two"'
 check "sim: scan sees uwe-sim-three on channel 11 (2462 MHz)" sh -c 'timeout 25 iw dev wlan0 scan | grep -A3 "^BSS 02:55:57:45:00:03" | grep -q "freq: 2462"'
