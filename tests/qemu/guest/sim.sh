@@ -49,7 +49,13 @@ check "sim: wlan0 up (operstate/flags)" sh -c "ip link show $IFN | grep -q UP"
 phase sim-scan
 # diagnostics for the first scan: driver debug log, where iw is blocked
 echo 4 > /sys/module/$WIFI/parameters/debug_level
+T=/sys/kernel/tracing
+echo 1 > $T/events/cfg80211/enable 2> /dev/null
+echo 1 > $T/tracing_on 2> /dev/null
+iw event -t > /tmp/ev.out 2>&1 &
+EVP=$!
 timeout 25 iw dev $IFN scan > /tmp/scan.out 2>&1 &
+SCANP=$!
 sleep 8
 for p in $(pidof iw); do
 	diag "iw $p wchan: $(cat /proc/$p/wchan 2>&1) stack: $(cat /proc/$p/stack 2>&1 | tr '\n' ';')"
@@ -62,8 +68,12 @@ for s in /proc/[0-9]*/stat; do
 	p=${p%/stat}
 	case "$(cut -d' ' -f3 "$s" 2> /dev/null)" in D) diag "D-state $p $(cat /proc/$p/comm): $(cat /proc/$p/stack 2>&1 | tr '\n' ';')" ;; esac
 done
-wait
+wait $SCANP
 echo 1 > /sys/module/$WIFI/parameters/debug_level
+kill $EVP 2> /dev/null
+diag "iw event: $(head -c 800 /tmp/ev.out | tr '\n' '|')"
+grep -i "scan" $T/trace 2> /dev/null | tail -n 25 | while IFS= read -r l; do diag "trace: $l"; done
+echo 0 > $T/events/cfg80211/enable 2> /dev/null
 diag "first scan output: $(head -c 600 /tmp/scan.out | tr '\n' '|')"
 dmesg | tail -n 150 > "$ATT/scan-debug.txt"
 check "sim: scan sees uwe-sim-open" scan_has uwe-sim-open
