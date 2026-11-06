@@ -72,7 +72,7 @@ wait $SCANP
 echo 1 > /sys/module/$WIFI/parameters/debug_level
 kill $EVP 2> /dev/null
 diag "iw event: $(head -c 800 /tmp/ev.out | tr '\n' '|')"
-grep -i "scan" $T/trace 2> /dev/null | tail -n 25 | while IFS= read -r l; do diag "trace: $l"; done
+tail -n 40 $T/trace 2> /dev/null | while IFS= read -r l; do diag "trace: $l"; done
 echo 0 > $T/events/cfg80211/enable 2> /dev/null
 diag "first scan output: $(head -c 600 /tmp/scan.out | tr '\n' '|')"
 dmesg | tail -n 150 > "$ATT/scan-debug.txt"
