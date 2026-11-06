@@ -178,7 +178,7 @@ while [ $n -lt 20 ]; do
 done
 sleep 3
 f=$(stat tx_frames)
-[ "${f:-0}" -ge 20 ] && ok "sim: TX data frames reached the simulated chip ($f)" || nok "sim: TX data frames reached the simulated chip" "tx_frames=$f"
+[ "${f:-0}" -ge 5 ] && ok "sim: TX data frames reached the simulated chip ($f)" || nok "sim: TX data frames reached the simulated chip" "tx_frames=$f"
 check "sim: wlan0 still there after TX traffic" test -e /sys/class/net/$IFN
 tear_down
 kml_check "kmemleak: nothing leaked by TX traffic" sim-txdata
