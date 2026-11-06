@@ -235,6 +235,12 @@ static void sim_do_scan(u8 ctx_id)
 	int i;
 
 	atomic_inc(&sim.scans);
+	/*
+	 * A real scan takes hundreds of ms. Finishing before the nl80211 scan
+	 * doit has returned makes iw drop the NEW_SCAN_RESULTS event (it is
+	 * still waiting for the trigger ack) and wait for it forever.
+	 */
+	msleep(100);
 	for (i = 0; i < ARRAY_SIZE(sim_aps); i++) {
 		unsigned int len;
 
