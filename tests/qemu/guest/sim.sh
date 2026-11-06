@@ -22,7 +22,12 @@ tear_down() {
 	ip link set $IFN down 2> /dev/null
 	unload_all
 }
-scan_has() { timeout 60 iw dev $IFN scan 2> /tmp/scan.err | grep -q "SSID: $1"; }
+scan_has() {
+	timeout 25 iw dev $IFN scan 2> /tmp/scan.err | grep -q "SSID: $1" && return 0
+	diag "scan for $1 failed: $(cat /tmp/scan.err)"
+	dmesg | grep -i -E "sprdwl|scan|uwe5622_sim" | tail -n 15 | while IFS= read -r l; do diag "$l"; done
+	return 1
+}
 
 
 kml_reset
@@ -43,9 +48,9 @@ check "sim: wlan0 up (operstate/flags)" sh -c "ip link show $IFN | grep -q UP"
 
 phase sim-scan
 check "sim: scan sees uwe-sim-open" scan_has uwe-sim-open
-check "sim: scan sees uwe-sim-two" sh -c 'timeout 60 iw dev wlan0 scan | grep -q "SSID: uwe-sim-two"'
-check "sim: scan sees uwe-sim-three on channel 11 (2462 MHz)" sh -c 'timeout 60 iw dev wlan0 scan | grep -A3 "^BSS 02:55:57:45:00:03" | grep -q "freq: 2462"'
-check "sim: scan result carries the signal level" sh -c 'timeout 60 iw dev wlan0 scan | grep -q "signal: -40"'
+check "sim: scan sees uwe-sim-two" sh -c 'timeout 25 iw dev wlan0 scan | grep -q "SSID: uwe-sim-two"'
+check "sim: scan sees uwe-sim-three on channel 11 (2462 MHz)" sh -c 'timeout 25 iw dev wlan0 scan | grep -A3 "^BSS 02:55:57:45:00:03" | grep -q "freq: 2462"'
+check "sim: scan result carries the signal level" sh -c 'timeout 25 iw dev wlan0 scan | grep -q "signal: -40"'
 [ "$(stat scans)" -ge 1 ] && ok "sim: firmware saw SCAN commands ($(stat scans))" || nok "sim: firmware saw SCAN commands"
 
 phase sim-connect
@@ -94,7 +99,7 @@ for f in short badlen garbage unknown_event truncated_connect truncated_scan bad
 done
 # transport error on the next send: the driver must report it, not crash
 echo fail_push > $INJ
-timeout 60 iw dev $IFN scan > /dev/null 2>&1
+timeout 25 iw dev $IFN scan > /dev/null 2>&1
 sleep 1
 check "fault fail_push: driver still alive" alive
 # firmware stops answering: commands time out, nothing hangs forever

@@ -27,6 +27,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/atomic.h>
+#include <linux/skbuff.h>
 #include <linux/unaligned.h>
 #include <wcn_bus.h>
 
@@ -91,6 +92,34 @@ static struct {
 
 /* ---- RX delivery ------------------------------------------------------ */
 
+/*
+ * The Wi-Fi core refills its RX mbufs with netdev_alloc_frag() and frees what
+ * it takes with put_page() (sprdwl_free_data(), SPRDWL_DEFRAG_MEM): a slab
+ * buffer there corrupts the page refcount. The other RX channels hand the
+ * buffer back with push_list(), like the SDIO transport's own pool buffers.
+ */
+static void *sim_rx_buf_alloc(int chn, unsigned int size)
+{
+	void *buf;
+
+	if (chn != CHN_WIFI_CMD_RX)
+		return kzalloc(size, GFP_KERNEL);
+	buf = netdev_alloc_frag(size);
+	if (buf)
+		memset(buf, 0, size);
+	return buf;
+}
+
+static void sim_rx_buf_free(int chn, void *buf)
+{
+	if (!buf)
+		return;
+	if (chn == CHN_WIFI_CMD_RX)
+		skb_free_frag(buf);
+	else
+		kfree(buf);
+}
+
 static void sim_rx_push(int chn, const void *payload, unsigned int len,
 			unsigned int declared_len)
 {
@@ -104,10 +133,10 @@ static void sim_rx_push(int chn, const void *payload, unsigned int len,
 		return;
 	}
 	mbuf = kzalloc(sizeof(*mbuf), GFP_KERNEL);
-	buf = kzalloc(4 + len + 4, GFP_KERNEL);
+	buf = sim_rx_buf_alloc(chn, 4 + len + 4);
 	if (!mbuf || !buf) {
 		kfree(mbuf);
-		kfree(buf);
+		sim_rx_buf_free(chn, buf);
 		return;
 	}
 	/* public header: len 7..22, eof 23, subtype 24..27, type 28..31 */
@@ -116,7 +145,7 @@ static void sim_rx_push(int chn, const void *payload, unsigned int len,
 	memcpy(buf + 4, payload, len);
 	mbuf->buf = buf;
 	mbuf->len = 4 + len;
-	/* the owner takes buf (it kfree()s it) and returns the mbuf */
+	/* the owner returns the mbuf with push_list(); see sim_push_list() */
 	ops->pop_link(chn, mbuf, mbuf, 1);
 }
 
@@ -380,12 +409,16 @@ static int sim_push_list(int chn, struct mbuf_t *head, struct mbuf_t *tail, int 
 	if (atomic_dec_if_positive(&sim.fail_next_push) >= 0)
 		return -EIO;
 	if (chn >= 12) {
-		/* owner gives an RX list back: the mbufs are ours, buf is the owner's */
+		/*
+		 * the owner gives an RX list back: the mbufs are ours; a buf
+		 * still set was not taken (the Wi-Fi core clears it when it does)
+		 */
 		struct mbuf_t *m = head, *next;
 		int i;
 
 		for (i = 0; i < num && m; i++, m = next) {
 			next = m->next;
+			sim_rx_buf_free(chn, m->buf);
 			kfree(m);
 		}
 		return 0;

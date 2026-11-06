@@ -84,9 +84,10 @@ kml_check() {
 	echo scan > "$KML"
 	sleep 6
 	echo scan > "$KML"
-	cat "$KML" > "$ATT/kmemleak-$2.txt"
+	# symbolise_kml is quadratic in the report size: cap it
+	n=$(grep -c "unreferenced object" "$KML")
+	head -n 1500 "$KML" > "$ATT/kmemleak-$2.txt"
 	symbolise_kml "$ATT/kmemleak-$2.txt"
-	n=$(grep -c 'unreferenced object' "$ATT/kmemleak-$2.txt")
 	if [ "$n" = 0 ]; then
 		ok "$1"
 	else

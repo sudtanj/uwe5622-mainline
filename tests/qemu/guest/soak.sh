@@ -8,7 +8,7 @@
 BSP=uwe5622_bsp_sdio WIFI=sprdwl_ng SIM=uwe5622_sim IFN=wlan0
 SECS=$(cmdline_get uwe.soak)
 SECS=${SECS:-600}
-alive() { [ -e /sys/class/net/$IFN ] && timeout 60 iw dev $IFN scan 2> /dev/null | grep -q "SSID: uwe-sim-open"; }
+alive() { [ -e /sys/class/net/$IFN ] && timeout 25 iw dev $IFN scan 2> /dev/null | grep -q "SSID: uwe-sim-open"; }
 
 kml_reset
 phase soak-up
