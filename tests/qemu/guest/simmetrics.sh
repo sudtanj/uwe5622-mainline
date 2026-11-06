@@ -22,6 +22,7 @@ if [ ! -e /sys/class/net/$IFN ]; then
 	exit 0
 fi
 ip link set $IFN up
+timeout 25 iw dev $IFN scan > /dev/null 2>&1
 timeout 60 iw dev $IFN connect uwe-sim-open > /dev/null 2>&1
 sleep 5
 meminfo_snap /tmp/s1

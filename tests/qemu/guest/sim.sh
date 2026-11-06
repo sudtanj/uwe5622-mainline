@@ -87,7 +87,7 @@ check "sim: iw connect to uwe-sim-open" sh -c "timeout 60 iw dev $IFN connect uw
 sleep 3
 check "sim: link reports connected" sh -c "iw dev $IFN link | grep -q 'Connected to 02:55:57:45:00:01'"
 eq "sim: carrier up after connect" 1 "$(cat /sys/class/net/$IFN/carrier 2>&1)"
-check "sim: station info (signal)" sh -c "iw dev $IFN station dump | grep -q signal"
+check "sim: station info (signal)" sh -c "iw dev $IFN station get 02:55:57:45:00:01 | grep -q signal"
 check "sim: iw disconnect" iw dev $IFN disconnect
 sleep 2
 check "sim: link reports not connected" sh -c "iw dev $IFN link | grep -q 'Not connected'"
@@ -167,6 +167,7 @@ kml_check "kmemleak: nothing leaked by the fault tests" sim-faults
 phase sim-txdata
 bring_up
 ip link set $IFN up
+timeout 25 iw dev $IFN scan > /dev/null 2>&1
 timeout 60 iw dev $IFN connect uwe-sim-open > /dev/null 2>&1
 sleep 2
 ip addr add 10.99.0.2/24 dev $IFN

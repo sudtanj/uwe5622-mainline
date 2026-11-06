@@ -13,3 +13,12 @@
 #   transport=external core has no transport (the "parameter tests" block of
 #   lifecycle.sh); the plain no-chip loops no longer leak. Intermittent.
 kmemleak: nothing leaked by the parameter tests
+
+# SIM-1 a Wi-Fi command that times out (fail_push, silent, drop=13 in the sim
+#   test) makes the driver assert CP2 (sprdwl_atcmd_assert(), cp_asserted=1,
+#   intf->exit=1) and every later command fails with -EIO. On hardware the
+#   WCN daemon then power-cycles the chip; the simulated chip has no such
+#   daemon, so the driver stays down until it is reloaded.
+fault fail_push: driver still alive
+fault silent: driver recovers when the firmware talks again
+fault drop=13: driver still alive

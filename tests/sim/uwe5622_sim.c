@@ -699,8 +699,17 @@ static int __init sim_init(void)
 
 static void __exit sim_exit(void)
 {
+	int i;
+
 	sysfs_remove_file(&THIS_MODULE->mkobj.kobj, &stats_attr.attr);
 	wcn_bus_unregister_transport(&sim_ops);
+	/*
+	 * Channels still registered belong to a Wi-Fi/BT module that was not
+	 * unloaded first (surprise removal): drop their pools, no one else will.
+	 */
+	for (i = 0; i < CHN_MAX_NUM; i++)
+		if (chn_ops(i))
+			bus_chn_deinit(chn_ops(i));
 	flush_workqueue(sim.wq);
 	destroy_workqueue(sim.wq);
 }
