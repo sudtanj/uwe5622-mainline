@@ -54,6 +54,14 @@ sleep 8
 for p in $(pidof iw); do
 	diag "iw $p wchan: $(cat /proc/$p/wchan 2>&1) stack: $(cat /proc/$p/stack 2>&1 | tr '\n' ';')"
 done
+diag "scan dump while iw waits: $(timeout 10 iw dev $IFN scan dump 2>&1 | grep -c 'SSID:') SSIDs"
+echo 1 > /proc/sys/kernel/sysrq
+echo w > /proc/sysrq-trigger
+for s in /proc/[0-9]*/stat; do
+	p=${s#/proc/}
+	p=${p%/stat}
+	case "$(cut -d' ' -f3 "$s" 2> /dev/null)" in D) diag "D-state $p $(cat /proc/$p/comm): $(cat /proc/$p/stack 2>&1 | tr '\n' ';')" ;; esac
+done
 wait
 echo 1 > /sys/module/$WIFI/parameters/debug_level
 diag "first scan output: $(head -c 600 /tmp/scan.out | tr '\n' '|')"
